@@ -5,7 +5,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/spf-osrm-vietnam
+  IMAGE_NAME: kahdeg-15520487/spf-osrm-vietnam
   OSM_URL: https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
 
 jobs:
