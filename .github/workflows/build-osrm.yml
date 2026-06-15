@@ -1,11 +1,6 @@
 name: Build & Publish OSRM Vietnam Image
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'osrm/**'
-      - '.github/workflows/build-osrm.yml'
   workflow_dispatch:
 
 env:
