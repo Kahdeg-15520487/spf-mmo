@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  balance   Float    @default(1000.0) // in-game virtual currency
+  role        String   @default("buyer") // active role: buyer, shop, shipper
+  isBot       Boolean  @default(false)
+  homeZoneId  String?  // residential zone ID for delivery address
+  homeAddress String?  // friendly name of home zone
+  homeLat     Float?
+  homeLng     Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop      Shop?
+  shipper   Shipper?
+  orders    Order[]      @relation("BuyerOrders")
+  reviews   Review[]
+}
+
+model Shop {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  address     String   @default("Downtown District")
+  zoneId      String?  // commercial zone ID
+  lat         Float    @default(10.7626)
+  lng         Float    @default(106.6602)
+  ownerId     String   @unique
+  owner       User     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  menuItems   MenuItem[]
+  orders      Order[]      @relation("ShopOrders")
+}
+
+model MenuItem {
+  id          String   @id @default(uuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?
+  category    String   @default("General")
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  OrderItem[]
+}
+
+model Shipper {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  vehicle   String   @default("Bicycle") // Bicycle, Motorbike, Car
+  rating    Float    @default(5.0)
+  totalDeliveries Int @default(0)
+  isOnline  Boolean  @default(false)
+  lat       Float    @default(10.7626)
+  lng       Float    @default(106.6602)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+  reviews   Review[]
+}
+
+model Order {
+  id          String    @id @default(uuid())
+  buyerId     String
+  buyer       User      @relation("BuyerOrders", fields: [buyerId], references: [id])
+  shopId      String
+  shop        Shop      @relation("ShopOrders", fields: [shopId], references: [id])
+  shipperId   String?
+  shipper     Shipper?  @relation(fields: [shipperId], references: [id])
+  status      String    @default("pending") // pending, accepted, picked_up, in_transit, delivered, cancelled, expired
+  totalAmount Float
+  deliveryFee Float      @default(5.0)
+  pickupAddress  String  @default("")
+  pickupLat      Float   @default(0)
+  pickupLng      Float   @default(0)
+  deliveryAddress String @default("")
+  deliveryLat    Float   @default(0)
+  deliveryLng    Float   @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  acceptedAt  DateTime?
+  pickedUpAt  DateTime?
+  deliveredAt DateTime?
+  expiresAt   DateTime?
+
+  items       OrderItem[]
+  review      Review?
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem  MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity  Int      @default(1)
+  price     Float    // snapshot of price at order time
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  buyerId   String
+  buyer     User     @relation(fields: [buyerId], references: [id])
+  shipperId String?
+  shipper   Shipper? @relation(fields: [shipperId], references: [id])
+  shopId    String?
+  // shop      Shop?    @relation(fields: [shopId], references: [id]) -- skip to avoid ambiguity
+  shipperRating Int?
+  shopRating    Int?
+  shipperComment String?
+  shopComment    String?
+  createdAt DateTime @default(now())
+}
