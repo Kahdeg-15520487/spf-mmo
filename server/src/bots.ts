@@ -4,6 +4,21 @@ import { Server as SocketIOServer } from 'socket.io';
 // In-memory route cache: orderId → array of [lat, lng] waypoints + current index
 const botRoutes = new Map<string, { waypoints: [number, number][]; idx: number }>();
 
+async function fetchOsrmEta(fromLat: number, fromLng: number, toLat: number, toLng: number): Promise<number> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    const data = await res.json() as any;
+    if (data.routes?.[0]) return data.routes[0].duration * 1000; // ms
+  } catch {}
+  // Fallback: estimate from straight-line distance at 30km/h
+  const d = Math.sqrt(Math.pow(toLat - fromLat, 2) + Math.pow(toLng - fromLng, 2)) * 111000;
+  return (d / (30000 / 3600)) * 1000;
+}
+
 async function fetchOsrmRoute(fromLat: number, fromLng: number, toLat: number, toLng: number): Promise<[number, number][]> {
   try {
     const controller = new AbortController();
@@ -147,12 +162,14 @@ async function botShipperProcess() {
         status: { in: ['accepted', 'picked_up', 'in_transit'] },
         shipper: { user: { username: { in: [...BOT_SHIPPERS] } } },
       },
-      include: { shipper: { include: { user: true } } },
+      include: { shipper: { include: { user: true } }, buyer: { select: { isBot: true } }, shop: { include: { owner: { select: { isBot: true } } } } },
       take: 20,
     });
 
     for (const order of active) {
       if (!order.shipper) continue;
+      // All-bot order handled by setTimeout on accept — skip movement
+      if (order.buyer?.isBot && order.shop?.owner?.isBot) continue;
 
       const SPEED: Record<string, number> = {
         'Xe Đạp': 0.000114,
@@ -220,18 +237,36 @@ async function botShipperProcess() {
       const pending = await prisma.order.findMany({
         where: { status: 'confirmed', expiresAt: { gt: new Date() } },
         take: freeShippers.length, orderBy: { createdAt: 'asc' },
+        include: { buyer: true, shop: { include: { owner: true } } },
       });
       for (let i = 0; i < Math.min(pending.length, freeShippers.length); i++) {
         const order = pending[i], shipper = freeShippers[i];
         const result = await prisma.order.updateMany({ where: { id: order.id, status: 'confirmed' }, data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() } });
         if (result.count === 0) continue;
-        await prisma.shipper.update({ where: { id: shipper.id }, data: { lat: order.pickupLat + (Math.random()-0.5)*0.01, lng: order.pickupLng + (Math.random()-0.5)*0.01 } });
         botRoutes.delete(`${order.id}:accepted`);
         botRoutes.delete(`${order.id}:picked_up`);
         botRoutes.delete(`${order.id}:in_transit`);
         emitOrderUpdate(order.id, 'accepted');
         io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: 'accepted' });
-        console.log(`🛵 ${shipper.user.username} accepted order`);
+
+        const allBot = order.buyer?.isBot && order.shop?.owner?.isBot;
+        if (allBot) {
+          // All-bot order: skip simulation, deliver after OSRM ETA
+          const etaMs = await fetchOsrmEta(order.pickupLat, order.pickupLng, order.deliveryLat, order.deliveryLng);
+          console.log(`🤖 All-bot order — ETA ${Math.round(etaMs / 1000)}s`);
+          setTimeout(async () => {
+            try {
+              await prisma.order.update({ where: { id: order.id }, data: { status: 'delivered', pickedUpAt: new Date(), deliveredAt: new Date() } });
+              await prisma.user.update({ where: { id: shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
+              await prisma.shipper.update({ where: { id: shipper.id }, data: { totalDeliveries: { increment: 1 } } });
+              emitOrderUpdate(order.id, 'delivered');
+            } catch { /* order may have expired */ }
+          }, etaMs);
+        } else {
+          // At least one human — full movement simulation
+          await prisma.shipper.update({ where: { id: shipper.id }, data: { lat: order.pickupLat + (Math.random()-0.5)*0.01, lng: order.pickupLng + (Math.random()-0.5)*0.01 } });
+          console.log(`🛵 ${shipper.user.username} accepted (human order)`);
+        }
       }
     }
   } catch (e) { console.error('Bot shipper error:', e); }
