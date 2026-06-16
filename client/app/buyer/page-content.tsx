@@ -6,6 +6,7 @@ import { useT } from '../i18n';
 import { Zone } from '../zones';
 import dynamic from 'next/dynamic';
 const OrderTracker = dynamic(() => import('./order-tracker').then(m => ({ default: m.OrderTracker })), { ssr: false });
+import { OrderEta } from './order-eta';
 
 const ZoneMapPicker = dynamic(() => import('../components/zone-map-picker'), { ssr: false });
 
@@ -197,6 +198,9 @@ export function BuyerDashboard() {
                 <span className="font-bold text-gray-800 dark:text-white">{order.totalAmount} {t.app.coins}</span>
               </div>
               <div className="text-sm text-gray-500 mb-2">{order.items?.map((oi) => <span key={oi.id} className="mr-2">• {oi.quantity}x {oi.menuItem?.name}</span>)}</div>
+              {(order.status === 'accepted' || order.status === 'picked_up' || order.status === 'in_transit') && (
+                <OrderEta orderId={order.id} status={order.status} />
+              )}
               {['confirmed','accepted','picked_up','in_transit'].includes(order.status) && <OrderTracker order={order} />}
               {(order.status === 'pending' || order.status === 'confirmed') && <button onClick={() => cancelOrder(order.id)} className="mt-2 text-xs text-red-500 hover:text-red-700 underline">{t.buyer.cancelOrder}</button>}
               {order.status === 'delivered' && !order.review && <ReviewForm order={order} onDone={loadOrders} />}

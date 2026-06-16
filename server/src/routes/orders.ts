@@ -2,6 +2,18 @@ import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
 import { XP_REWARDS, XP_PER_LEVEL } from '../progression';
 
+const OSRM = 'http://localhost:5000';
+
+async function getOsrmEta(fromLng: number, fromLat: number, toLng: number, toLat: number): Promise<number | null> {
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${OSRM}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`, { signal: controller.signal });
+    const data = await res.json() as any;
+    return data.routes?.[0]?.duration ?? null; // seconds
+  } catch { return null; }
+}
+
 export const orderRouter = Router();
 
 async function addXp(userId: string, amount: number) {
@@ -51,6 +63,37 @@ orderRouter.get('/:id', async (req: Request, res: Response) => {
     if (!order) { res.status(404).json({ error: 'Không tìm thấy đơn hàng' }); return; }
     res.json(order);
   } catch (error) { res.status(500).json({ error: 'Không thể tải đơn hàng' }); }
+});
+
+// ETA for an order based on shipper's current position
+orderRouter.get('/:id/eta', async (req: Request, res: Response) => {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: req.params.id },
+      include: { shipper: { select: { lat: true, lng: true } } },
+    });
+    if (!order) { res.status(404).json({ error: 'Không tìm thấy đơn hàng' }); return; }
+
+    let etaSeconds: number | null = null;
+    let etaLabel: string = '';
+
+    if ((order.status === 'accepted') && order.shipper) {
+      etaSeconds = await getOsrmEta(order.shipper.lng, order.shipper.lat, order.pickupLng, order.pickupLat);
+      etaLabel = 'Shipper đang tới lấy hàng';
+    } else if (['picked_up', 'in_transit'].includes(order.status) && order.shipper) {
+      etaSeconds = await getOsrmEta(order.shipper.lng, order.shipper.lat, order.deliveryLng, order.deliveryLat);
+      etaLabel = 'Shipper đang giao hàng';
+    } else if (order.status === 'pending') {
+      etaLabel = 'Chờ shop xác nhận';
+    } else if (order.status === 'confirmed') {
+      etaLabel = 'Chờ shipper nhận đơn';
+    } else if (order.status === 'delivered') {
+      etaLabel = 'Giao thành công';
+    }
+
+    const etaMinutes = etaSeconds !== null ? Math.max(1, Math.round(etaSeconds / 60)) : null;
+    res.json({ status: order.status, etaSeconds, etaMinutes, etaLabel });
+  } catch (error) { res.status(500).json({ error: 'Không thể tính ETA' }); }
 });
 
 orderRouter.post('/', async (req: Request, res: Response) => {
