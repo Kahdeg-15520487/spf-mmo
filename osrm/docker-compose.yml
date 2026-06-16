@@ -1,28 +1,8 @@
-# OSRM routing — first boot downloads & processes Vietnam data inside container
-# Data lives inside the container filesystem (no volume = no platform mmap issues)
+# OSRM routing — pull pre-built image from ghcr
 services:
   osrm:
-    image: osrm/osrm-backend:latest
+    image: ghcr.io/kahdeg-15520487/spf-osrm-vietnam:latest
     container_name: spf-osrm
     ports:
       - "5000:5000"
-    command: >
-      sh -c "
-      sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list; sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list; sed -i '/stretch-updates/d' /etc/apt/sources.list;
-      apt-get update -qq && apt-get install -y -qq curl 2>/dev/null;
-      if [ ! -f /opt/vietnam-latest.osm.pbf ]; then
-        echo 'Downloading Vietnam OSM (~100MB)...';
-        curl -sL -o /opt/vietnam-latest.osm.pbf https://download.geofabrik.de/asia/vietnam-latest.osm.pbf;
-      fi;
-      if [ ! -f /opt/vietnam-latest.osrm ]; then
-        echo 'Processing (2-5 min)...';
-        osrm-extract -p /opt/car.lua /opt/vietnam-latest.osm.pbf;
-        osrm-partition /opt/vietnam-latest.osrm;
-        osrm-customize /opt/vietnam-latest.osrm;
-        chmod 644 /opt/vietnam-latest.osrm*;
-        rm /opt/vietnam-latest.osm.pbf;
-        echo 'Ready!';
-      fi;
-      osrm-routed --algorithm mld /opt/vietnam-latest.osrm
-      "
     restart: unless-stopped
