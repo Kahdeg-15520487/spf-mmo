@@ -1,11 +1,11 @@
 FROM osrm/osrm-backend:latest
 
-RUN apt-get update && apt-get install -y curl && \
-    curl -L -o /data/vietnam-latest.osm.pbf https://download.geofabrik.de/asia/vietnam-latest.osm.pbf && \
-    osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf && \
-    osrm-partition /data/vietnam-latest.osm.pbf && \
-    osrm-customize /data/vietnam-latest.osm.pbf && \
-    rm /data/vietnam-latest.osm.pbf
+COPY vietnam-latest.osm.pbf /data/vietnam-latest.osm.pbf
+
+RUN osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf
+RUN osrm-partition /data/vietnam-latest.osrm
+RUN osrm-customize /data/vietnam-latest.osrm
+RUN rm /data/vietnam-latest.osm.pbf
 
 EXPOSE 5000
 ENTRYPOINT ["osrm-routed", "--algorithm", "mld", "/data/vietnam-latest.osrm"]

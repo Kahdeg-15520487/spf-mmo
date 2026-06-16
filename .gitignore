@@ -5,7 +5,7 @@ dist/
 *.db-journal
 *.db-wal
 *.db-shm
-osrm/osrm-data/*.osm.pbf
+osrm/*.osm.pbf
 osrm/osrm-data/*.osrm*
 .env
 .env.local
