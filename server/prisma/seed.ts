@@ -75,7 +75,7 @@ async function main() {
     const user = await prisma.user.upsert({
       where: { username: s.username },
       update: { balance: 999999 },
-      create: { username: s.username, balance: 999999, role: 'shop',
+      create: { username: s.username, balance: 0, role: 'shop',
         homeZoneId: 'r-q10-nguyen-tri-phuong', homeAddress: 'Quận 10 — Nguyễn Tri Phương', homeLat: 10.7690, homeLng: 106.6670,
       },
     });
@@ -111,7 +111,7 @@ async function main() {
     const user = await prisma.user.upsert({
       where: { username: s.username },
       update: { balance: 999999 },
-      create: { username: s.username, balance: 999999, role: 'shipper', homeZoneId: zid, homeAddress: '', homeLat: 10.77, homeLng: 106.69 },
+      create: { username: s.username, balance: 0, role: 'shipper', homeZoneId: zid, homeAddress: '', homeLat: 10.77, homeLng: 106.69 },
     });
     await prisma.shipper.upsert({
       where: { userId: user.id },
@@ -149,9 +149,9 @@ async function main() {
   for (const b of buyerData) {
     await prisma.user.upsert({
       where: { username: b.username },
-      update: { balance: 999999, homeZoneId: b.zoneId },
+      update: { balance: 0, homeZoneId: b.zoneId },
       create: {
-        username: b.username, balance: 999999, role: 'buyer',
+        username: b.username, balance: 0, role: 'buyer',
         homeZoneId: b.zoneId, homeAddress: addrMap[b.zoneId] || b.zoneId,
         homeLat: 10.77 + Math.random() * 0.08, homeLng: 106.63 + Math.random() * 0.14,
       },

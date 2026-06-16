@@ -58,9 +58,8 @@ async function botBuyerPlaceOrder() {
     const deliveryFee = 5;
 
     const total = foodCost + deliveryFee;
-    if (buyer.balance < total) return; // safety check (shouldn't happen with 999999 balance)
 
-    await prisma.user.update({ where: { id: buyer.id }, data: { balance: { decrement: total } } });
+    // Bot buyers don't deduct balance — shops still get paid
     await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { increment: foodCost } } });
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
