@@ -57,7 +57,12 @@ async function botBuyerPlaceOrder() {
     }
     const deliveryFee = 5;
 
-    // Bots don't need balance — just create the order directly
+    const total = foodCost + deliveryFee;
+    if (buyer.balance < total) return; // safety check (shouldn't happen with 999999 balance)
+
+    await prisma.user.update({ where: { id: buyer.id }, data: { balance: { decrement: total } } });
+    await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { increment: foodCost } } });
+
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     const order = await prisma.order.create({
       data: {
@@ -155,9 +160,10 @@ async function botShipperProcess() {
       emitOrderUpdate(order.id, nextStatus);
       io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
 
-      if (nextStatus === 'delivered') {
+      if (nextStatus === 'delivered' && order.shipper) {
+        await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
         await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
-        console.log(`✅ ${order.shipper?.user?.username || 'bot'} delivered`);
+        console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
       }
     }
   } catch (e) { console.error('Bot shipper error:', e); }
