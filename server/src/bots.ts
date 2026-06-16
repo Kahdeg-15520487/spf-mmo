@@ -178,7 +178,7 @@ async function botShipperProcess() {
         'Xe Máy': 0.000550,  // ~72 km/h @ 3s tick
         'Ô Tô':   0.000450,  // ~59 km/h @ 3s tick
       };
-      const speed = (SPEED[order.shipper.vehicle] || 0.000270) * (0.9 + Math.random() * 0.2);
+      const speed = (SPEED[order.shipper.vehicle] || 0.000550) * (0.9 + Math.random() * 0.2);
       const targetLat = order.status === 'accepted' ? order.pickupLat : order.deliveryLat;
       const targetLng = order.status === 'accepted' ? order.pickupLng : order.deliveryLng;
 

@@ -1,0 +1,12 @@
+{
+  "agentName": "worker",
+  "runId": "1583d13bbe4cb7f7",
+  "rootRunId": "1583d13bbe4cb7f7",
+  "cwd": "C:/Users/mnguyen/source/repos/spf-mmo",
+  "outputFile": "C:\\Users\\mnguyen\\source\\repos\\spf-mmo\\.pi\\agent\\runs\\1583d13bbe4cb7f7\\subagents\\worker-1583d13bbe4cb7f7\\.swarm-review\\reports\\release-findings.md",
+  "readFiles": [
+    "C:\\Users\\mnguyen\\source\\repos\\spf-mmo\\.swarm-review\\diff.patch",
+    "C:\\Users\\mnguyen\\source\\repos\\spf-mmo\\.swarm-review\\shared-context.txt"
+  ],
+  "createdAt": "2026-06-16T09:14:39.025Z"
+}

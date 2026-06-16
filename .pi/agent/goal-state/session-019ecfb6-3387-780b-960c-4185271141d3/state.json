@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "state": {
+    "schemaVersion": 1,
+    "runId": "session-019ecfb6-3387-780b-960c-4185271141d3",
+    "status": "idle",
+    "goals": [],
+    "ledger": [],
+    "continuation": {
+      "queued": false,
+      "blockers": [],
+      "consecutiveFailures": {}
+    },
+    "createdAt": "2026-06-16T09:14:52.184Z",
+    "updatedAt": "2026-06-16T09:14:52.184Z"
+  },
+  "snapshotSeq": 0,
+  "writtenAt": "2026-06-16T09:14:52.185Z"
+}

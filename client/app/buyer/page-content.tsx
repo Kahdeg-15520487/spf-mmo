@@ -84,7 +84,7 @@ export function BuyerDashboard() {
     if (res.ok) { const data = await res.json(); localStorage.setItem('spf-user', JSON.stringify(data)); window.location.reload(); }
   };
 
-  useEffect(() => { if (user && !user.homeZoneId) setShowHomePicker(true); }, [user?.id]);
+  useEffect(() => { if (user && !user.homeZoneId) setShowHomePicker(true); }, [user?.id, user?.homeZoneId]);
 
   const statusLabel = (s: string) => (t.orderStatus as any)[s] || s;
 
