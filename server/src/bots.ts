@@ -37,7 +37,17 @@ async function botBuyerPlaceOrder() {
 
     if (buyers.length === 0 || shops.length === 0) return;
 
-    const buyer = buyers[Math.floor(Math.random() * buyers.length)];
+    // Only pick buyers with no active orders
+    const activeBuyerIds = new Set(
+      (await prisma.order.findMany({
+        where: { status: { in: ['pending', 'confirmed', 'accepted', 'picked_up', 'in_transit'] }, buyerId: { in: buyers.map(b => b.id) } },
+        select: { buyerId: true },
+      })).map(o => o.buyerId)
+    );
+    const idleBuyers = buyers.filter(b => !activeBuyerIds.has(b.id));
+    if (idleBuyers.length === 0) return;
+
+    const buyer = idleBuyers[Math.floor(Math.random() * idleBuyers.length)];
     const shop = shops[Math.floor(Math.random() * shops.length)];
     if (shop.menuItems.length === 0) return;
 
@@ -114,15 +124,26 @@ async function botShipperProcess() {
     });
     if (shippers.length === 0) return;
 
-    // Accept confirmed orders
+    // Only use shippers that have no active orders
+    const busyShipperIds = new Set(
+      (await prisma.order.findMany({
+        where: { status: { in: ['accepted', 'picked_up', 'in_transit'] }, shipperId: { not: null } },
+        select: { shipperId: true },
+      })).map(o => o.shipperId!)
+    );
+    const freeShippers = shippers.filter(s => !busyShipperIds.has(s.id));
+    if (freeShippers.length === 0) return;
+
+    // Accept confirmed orders — one per free shipper
     const pending = await prisma.order.findMany({
       where: { status: 'confirmed', expiresAt: { gt: new Date() } },
-      take: 5,
+      take: freeShippers.length,
       orderBy: { createdAt: 'asc' },
     });
 
-    for (const order of pending) {
-      const shipper = shippers[Math.floor(Math.random() * shippers.length)];
+    for (let i = 0; i < Math.min(pending.length, freeShippers.length); i++) {
+      const order = pending[i];
+      const shipper = freeShippers[i];
       const result = await prisma.order.updateMany({
         where: { id: order.id, status: 'confirmed' },
         data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() },
