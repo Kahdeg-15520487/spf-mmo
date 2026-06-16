@@ -1,7 +1,21 @@
 import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
+import { XP_REWARDS, XP_PER_LEVEL } from '../progression';
 
 export const orderRouter = Router();
+
+async function addXp(userId: string, amount: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.isBot) return;
+  const newXp = user.xp + amount;
+  let newLevel = user.level;
+  let remainingXp = newXp;
+  while (remainingXp >= XP_PER_LEVEL(newLevel)) {
+    remainingXp -= XP_PER_LEVEL(newLevel);
+    newLevel++;
+  }
+  await prisma.user.update({ where: { id: userId }, data: { xp: newXp, level: newLevel } });
+}
 
 orderRouter.get('/', async (req: Request, res: Response) => {
   try {
@@ -74,6 +88,10 @@ orderRouter.post('/', async (req: Request, res: Response) => {
     });
 
     res.status(201).json(order);
+
+    // Award XP to buyer for placing order
+    await addXp(buyerId, XP_REWARDS.placeOrder);
+
     io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'pending' });
   } catch (error) { console.error('Lỗi tạo đơn:', error); res.status(500).json({ error: 'Không thể tạo đơn hàng' }); }
 });

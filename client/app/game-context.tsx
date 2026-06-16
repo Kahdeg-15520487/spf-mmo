@@ -10,6 +10,9 @@ export interface User {
   username: string;
   balance: number;
   role: string;
+  level?: number;
+  xp?: number;
+  lastLoginBonus?: string | null;
   homeZoneId?: string | null;
   homeAddress?: string | null;
   homeLat?: number | null;

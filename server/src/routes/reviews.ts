@@ -1,7 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../index';
+import { XP_REWARDS, XU_REWARDS, XP_PER_LEVEL } from '../progression';
 
 export const reviewRouter = Router();
+
+async function addXpAndXu(userId: string, xp: number, xu: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.isBot) return;
+  const newXp = user.xp + xp;
+  let newLevel = user.level;
+  let remainingXp = newXp;
+  while (remainingXp >= XP_PER_LEVEL(newLevel)) { remainingXp -= XP_PER_LEVEL(newLevel); newLevel++; }
+  await prisma.user.update({ where: { id: userId }, data: { xp: newXp, level: newLevel, balance: { increment: xu } } });
+}
 
 reviewRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -24,6 +35,9 @@ reviewRouter.post('/', async (req: Request, res: Response) => {
     }
 
     res.status(201).json(review);
+
+    // Award XP + xu to buyer for reviewing
+    await addXpAndXu(buyerId, XP_REWARDS.reviewSubmitted, XU_REWARDS.reviewSubmitted);
   } catch (error) { res.status(500).json({ error: 'Không thể gửi đánh giá' }); }
 });
 

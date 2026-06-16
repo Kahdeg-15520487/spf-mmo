@@ -1,7 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
+import { XP_REWARDS, XP_PER_LEVEL } from '../progression';
 
 export const shipperRouter = Router();
+
+async function addXp(userId: string, amount: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.isBot) return;
+  const newXp = user.xp + amount;
+  let newLevel = user.level;
+  let remainingXp = newXp;
+  while (remainingXp >= XP_PER_LEVEL(newLevel)) { remainingXp -= XP_PER_LEVEL(newLevel); newLevel++; }
+  await prisma.user.update({ where: { id: userId }, data: { xp: newXp, level: newLevel } });
+}
 
 async function emitOrderUpdate(orderId: string, status: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { shop: true } });
@@ -95,6 +106,7 @@ shipperRouter.post('/:id/deliver', async (req: Request, res: Response) => {
     if (sp) {
       await prisma.user.update({ where: { id: sp.userId }, data: { balance: { increment: order.deliveryFee } } });
       await prisma.shipper.update({ where: { id: req.params.id }, data: { totalDeliveries: { increment: 1 } } });
+      await addXp(sp.userId, XP_REWARDS.orderDelivered);
     }
     res.json(updated);
   } catch (error) { res.status(500).json({ error: 'Không thể giao hàng' }); }

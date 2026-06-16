@@ -43,17 +43,23 @@ export default function Home() {
             <span className="text-2xl">🍜</span>
             <div>
               <h1 className="font-bold text-gray-800 dark:text-white">{t.app.title}</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{user.username} · 💰 {user.balance.toFixed(0)} {t.app.coins}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{user.username} · 💰 {user.balance.toFixed(0)} {t.app.coins} · ⭐ Cấp {user.level || 1}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
-              {(['buyer','shop','shipper'] as const).map((role) => (
-                <button key={role} onClick={() => switchRole(role)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all capitalize ${user.role === role ? 'bg-white dark:bg-gray-600 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+              {(['buyer','shop','shipper'] as const).map((role) => {
+                const lvl = user.level || 1;
+                const unlocked = role === 'buyer' || (role === 'shipper' && lvl >= 3) || (role === 'shop' && lvl >= 5);
+                return (
+                <button key={role} onClick={() => unlocked && switchRole(role)} disabled={!unlocked}
+                  title={!unlocked ? (role === 'shipper' ? 'Mở khóa ở Cấp 3' : 'Mở khóa ở Cấp 5') : ''}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${user.role === role ? 'bg-white dark:bg-gray-600 text-orange-600 dark:text-orange-400 shadow-sm' : unlocked ? 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}>
                   {role === 'shop' ? t.header.roleShop : role === 'shipper' ? t.header.roleShipper : t.header.roleBuyer}
+                  {!unlocked && <span className="ml-1 text-xs">🔒</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
             <button onClick={logout} className="px-3 py-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors">{t.header.exit}</button>
           </div>

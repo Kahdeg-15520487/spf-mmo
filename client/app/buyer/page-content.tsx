@@ -87,8 +87,31 @@ export function BuyerDashboard() {
 
   const statusLabel = (s: string) => (t.orderStatus as any)[s] || s;
 
+  // XP progress
+  const lvl = user?.level || 1;
+  const xp = user?.xp || 0;
+  const xpForNext = lvl * lvl * 50;
+  const xpForCurrent = (lvl - 1) * (lvl - 1) * 50;
+  const xpProgress = Math.min(100, Math.round(((xp - xpForCurrent) / (xpForNext - xpForCurrent)) * 100));
+
   return (
     <div>
+      {/* XP Progress Bar */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 mb-4 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-300">⭐ Cấp {lvl}</span>
+          <span className="text-xs text-gray-400">{xp} / {xpForNext} XP</span>
+        </div>
+        <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full transition-all" style={{ width: `${xpProgress}%` }} />
+        </div>
+        <div className="flex gap-3 mt-2 text-xs text-gray-400 flex-wrap">
+          <span>🛒 Đặt hàng: +5 XP</span>
+          <span>⭐ Đánh giá: +5 XP +5 xu</span>
+          <span>📅 Điểm danh: +10 XP +50 xu</span>
+        </div>
+      </div>
+
       {user?.homeZoneId && (
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center justify-between border border-blue-200 dark:border-blue-800">
           <div className="flex items-center gap-2"><span className="text-lg">🏠</span><div><p className="text-sm font-medium text-blue-800 dark:text-blue-200">{t.buyer.homeBanner}</p><p className="text-xs text-blue-600 dark:text-blue-400">{user.homeAddress}</p></div></div>
