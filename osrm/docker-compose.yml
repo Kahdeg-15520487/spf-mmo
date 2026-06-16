@@ -1,8 +1,4 @@
-# OSRM self-hosted routing for SPF MMO
-# Image built by GitHub Actions — includes pre-processed Vietnam map data
-# Pull: docker compose pull
-# Run:  docker compose up -d
-
+# OSRM routing — pull from ghcr (built by GitHub Actions)
 services:
   osrm:
     image: ghcr.io/kahdeg-15520487/spf-osrm-vietnam:latest
@@ -10,8 +6,3 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/5000"]
-      interval: 30s
-      timeout: 5s
-      retries: 3

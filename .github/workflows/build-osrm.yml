@@ -5,7 +5,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: kahdeg-15520487/spf-osrm-vietnam
+  IMAGE_NAME: ${{ github.repository_owner }}/spf-osrm-vietnam
   OSM_URL: https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
 
 jobs:
@@ -16,47 +16,37 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download Vietnam OSM data
+      - name: Download Vietnam OSM
         run: |
           mkdir -p osrm/osrm-data
           curl -L --retry 3 -o osrm/osrm-data/vietnam-latest.osm.pbf "$OSM_URL"
           ls -lh osrm/osrm-data/
 
-      - name: Extract OSM data
+      - name: Extract
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/osrm/osrm-data:/data \
-            osrm/osrm-backend:latest \
-            osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf
+          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf
 
-      - name: Partition graph
+      - name: Partition
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/osrm/osrm-data:/data \
-            osrm/osrm-backend:latest \
-            osrm-partition /data/vietnam-latest.osm.pbf
+          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-partition /data/vietnam-latest.osrm
 
-      - name: Customize weights
+      - name: Customize
         run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/osrm/osrm-data:/data \
-            osrm/osrm-backend:latest \
-            osrm-customize /data/vietnam-latest.osm.pbf
+          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-customize /data/vietnam-latest.osrm
 
-      - name: Show processed files
+      - name: Verify files
         run: ls -lh osrm/osrm-data/
 
-      - name: Log in to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push Docker image
+      - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: ./osrm
@@ -64,6 +54,3 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.description=OSRM routing server with Vietnam map data
