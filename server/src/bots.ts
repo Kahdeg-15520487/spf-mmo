@@ -146,34 +146,36 @@ async function botShipperProcess() {
     for (const order of active) {
       if (!order.shipper) continue;
 
+      // Speed based on vehicle (degrees per 10s tick)
+      // Bicycle: ~15km/h, Motorbike: ~35km/h, Car: ~30km/h (city traffic)
+      const SPEED: Record<string, number> = {
+        'Xe Đạp': 0.00038,   // ~15 km/h
+        'Xe Máy': 0.00090,   // ~35 km/h
+        'Ô Tô':   0.00075,   // ~30 km/h
+      };
+      const speed = (SPEED[order.shipper.vehicle] || 0.00090) * (0.9 + Math.random() * 0.2); // ±10% variance
+
       // Target: go to shop for pickup, go to delivery address after
       const targetLat = order.status === 'accepted' ? order.pickupLat : order.deliveryLat;
       const targetLng = order.status === 'accepted' ? order.pickupLng : order.deliveryLng;
       const currentLat = order.shipper.lat;
       const currentLng = order.shipper.lng;
 
-      // Move 20% towards target each tick
-      const newLat = currentLat + (targetLat - currentLat) * 0.2;
-      const newLng = currentLng + (targetLng - currentLng) * 0.2;
+      // Move fixed step towards target
+      const dLat = targetLat - currentLat;
+      const dLng = targetLng - currentLng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng);
 
-      // Update shipper position
-      await prisma.shipper.update({
-        where: { id: order.shipper.id },
-        data: { lat: newLat, lng: newLng },
-      });
+      if (dist > 0.0003) {
+        // Still moving — advance by one speed step in the direction of target
+        const newLat = currentLat + (dLat / dist) * speed;
+        const newLng = currentLng + (dLng / dist) * speed;
+        await prisma.shipper.update({ where: { id: order.shipper.id }, data: { lat: newLat, lng: newLng } });
+        io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: order.shipper.id, lat: newLat, lng: newLng, orderId: order.id });
+        continue;
+      }
 
-      // Emit location update to buyer watching this order
-      io.to(`order:${order.id}`).emit('shipper:location-update', {
-        shipperId: order.shipper.id,
-        lat: newLat,
-        lng: newLng,
-        orderId: order.id,
-      });
-
-      // Check if close enough to target to advance status
-      const dist = Math.sqrt(Math.pow(newLat - targetLat, 2) + Math.pow(newLng - targetLng, 2));
-      if (dist > 0.001) continue; // not there yet (~100m)
-
+      // Arrived — advance order status
       const nextStatus =
         order.status === 'accepted' ? 'picked_up' :
         order.status === 'picked_up' ? 'in_transit' :
