@@ -246,17 +246,23 @@ async function botShipperProcess() {
         continue;
       }
 
-      // Advance along waypoints by speed (may skip multiple waypoints per tick)
+      // Advance along waypoints — interpolate within segment if needed
       let remaining = speed;
       while (remaining > 0 && route.idx < route.waypoints.length - 1) {
-        const [wLat, wLng] = route.waypoints[route.idx + 1];
-        const [cLat, cLng] = route.waypoints[route.idx];
-        const d = Math.sqrt(Math.pow(wLat - cLat, 2) + Math.pow(wLng - cLng, 2));
+        const [nextLat, nextLng] = route.waypoints[route.idx + 1];
+        const [currLat, currLng] = route.waypoints[route.idx];
+        const d = Math.sqrt(Math.pow(nextLat - currLat, 2) + Math.pow(nextLng - currLng, 2));
         if (d <= remaining) {
           remaining -= d;
           route.idx++;
         } else {
-          break;
+          // Interpolate within segment — move partway and update current position
+          const frac = remaining / d;
+          route.waypoints[route.idx] = [
+            currLat + (nextLat - currLat) * frac,
+            currLng + (nextLng - currLng) * frac,
+          ];
+          remaining = 0;
         }
       }
 
