@@ -3,8 +3,8 @@
   "state": {
     "schemaVersion": 1,
     "runId": "session-019eca49-a063-72a1-90fc-288ff7d472b5",
-    "status": "contract_drafted",
-    "topic": "let's make a mmo about shipping food and stuff from shop to buyer with shipper (3 player roles)",
+    "status": "interviewing",
+    "topic": "",
     "checklist": [
       {
         "id": "objective",
@@ -344,10 +344,22 @@
           "handoffCommand": "/goal"
         },
         "seq": 22
+      },
+      {
+        "type": "interview_started",
+        "message": "Started clarification interview: the osrm route is just a suggestion, allow shipper to drive however they want",
+        "createdAt": "2026-06-16T06:31:45.226Z",
+        "seq": 23
+      },
+      {
+        "type": "interview_started",
+        "message": "Started clarification interview: untitled",
+        "createdAt": "2026-06-16T06:34:50.421Z",
+        "seq": 24
       }
     ],
     "createdAt": "2026-06-15T07:59:18.987Z",
-    "updatedAt": "2026-06-15T08:11:35.718Z",
+    "updatedAt": "2026-06-16T06:34:50.421Z",
     "goalContract": {
       "objective": "Build a cross-platform (mobile-first, web-supported) food delivery MMO game where 3 player roles (Shop, Buyer, Shipper) interact through a real-world map interface with in-game currency, live order tracking, and a ratings/reviews system.",
       "scope": [
@@ -416,6 +428,6 @@
       "draftedAt": "2026-06-15T08:11:35.718Z"
     }
   },
-  "snapshotSeq": 22,
-  "writtenAt": "2026-06-16T04:14:30.858Z"
+  "snapshotSeq": 24,
+  "writtenAt": "2026-06-16T06:34:50.421Z"
 }
