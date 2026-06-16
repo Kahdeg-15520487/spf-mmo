@@ -84,6 +84,26 @@ async function botBuyerPlaceOrder() {
   } catch (e) { console.error('Bot buyer error:', e); }
 }
 
+// Auto-confirm pending orders at bot-owned shops (so real players don't wait)
+async function botShopConfirm() {
+  try {
+    const pending = await prisma.order.findMany({
+      where: {
+        status: 'pending',
+        shop: { owner: { username: { in: [...BOT_SHOPS] } } },
+      },
+      take: 10,
+    });
+    for (const order of pending) {
+      await prisma.order.update({ where: { id: order.id }, data: { status: 'confirmed' } });
+      emitOrderUpdate(order.id, 'confirmed');
+      const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
+      if (shop) io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'confirmed' });
+      console.log(`🏪 Bot shop auto-confirmed order ${order.id.slice(0, 8)}`);
+    }
+  } catch (e) { console.error('Bot shop confirm error:', e); }
+}
+
 async function botShipperProcess() {
   try {
     const shippers = await prisma.shipper.findMany({
@@ -148,6 +168,7 @@ async function botShipperProcess() {
 
 let buyerInterval: ReturnType<typeof setInterval> | null = null;
 let shipperInterval: ReturnType<typeof setInterval> | null = null;
+let shopConfirmInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startBots(_prisma: PrismaClient, _io: SocketIOServer) {
   prisma = _prisma;
@@ -168,12 +189,19 @@ export function startBots(_prisma: PrismaClient, _io: SocketIOServer) {
     botShipperProcess();
   }, 10000);
 
+  // Auto-confirm orders at bot shops every 5 seconds
+  shopConfirmInterval = setInterval(() => {
+    botShopConfirm();
+  }, 5000);
+
   botBuyerPlaceOrder();
   botShipperProcess();
+  botShopConfirm();
 }
 
 export function stopBots() {
   if (buyerInterval) clearInterval(buyerInterval);
   if (shipperInterval) clearInterval(shipperInterval);
+  if (shopConfirmInterval) clearInterval(shopConfirmInterval);
   console.log('🤖 Bot simulation stopped');
 }
