@@ -10,7 +10,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: kahdeg-15520487/spf-osrm-vietnam
-  OSM_URL: https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
 
 jobs:
   build:
@@ -21,27 +20,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download Vietnam OSM
-        run: |
-          mkdir -p osrm/osrm-data
-          curl -L --retry 3 -o osrm/osrm-data/vietnam-latest.osm.pbf "$OSM_URL"
-          ls -lh osrm/osrm-data/
-
-      - name: Extract
-        run: |
-          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf
-
-      - name: Partition
-        run: |
-          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-partition /data/vietnam-latest.osrm
-
-      - name: Customize
-        run: |
-          docker run --rm -v ${{ github.workspace }}/osrm/osrm-data:/data osrm/osrm-backend:latest osrm-customize /data/vietnam-latest.osrm
-
-      - name: Verify files
-        run: ls -lh osrm/osrm-data/
 
       - name: Login to GHCR
         uses: docker/login-action@v3
