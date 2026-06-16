@@ -6,8 +6,11 @@ const botRoutes = new Map<string, { waypoints: [number, number][]; idx: number }
 
 async function fetchOsrmRoute(fromLat: number, fromLng: number, toLat: number, toLng: number): Promise<[number, number][]> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     const data = await res.json() as any;
     if (data.routes?.[0]) {
       return data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
@@ -138,79 +141,28 @@ async function botShopConfirm() {
 
 async function botShipperProcess() {
   try {
-    const shippers = await prisma.shipper.findMany({
-      where: { isOnline: true, user: { username: { in: [...BOT_SHIPPERS] } } },
-      include: { user: true },
-    });
-    if (shippers.length === 0) return;
-
-    // Only use shippers that have no active orders
-    const busyShipperIds = new Set(
-      (await prisma.order.findMany({
-        where: { status: { in: ['accepted', 'picked_up', 'in_transit'] }, shipperId: { not: null } },
-        select: { shipperId: true },
-      })).map(o => o.shipperId!)
-    );
-    const freeShippers = shippers.filter(s => !busyShipperIds.has(s.id));
-    if (freeShippers.length === 0) return;
-
-    // Accept confirmed orders — one per free shipper
-    const pending = await prisma.order.findMany({
-      where: { status: 'confirmed', expiresAt: { gt: new Date() } },
-      take: freeShippers.length,
-      orderBy: { createdAt: 'asc' },
-    });
-
-    for (let i = 0; i < Math.min(pending.length, freeShippers.length); i++) {
-      const order = pending[i];
-      const shipper = freeShippers[i];
-      const result = await prisma.order.updateMany({
-        where: { id: order.id, status: 'confirmed' },
-        data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() },
-      });
-      if (result.count === 0) continue;
-
-      // Teleport shipper near the pickup so movement starts close
-      await prisma.shipper.update({
-        where: { id: shipper.id },
-        data: {
-          lat: order.pickupLat + (Math.random() - 0.5) * 0.01,
-          lng: order.pickupLng + (Math.random() - 0.5) * 0.01,
-        },
-      });
-      // Clear any stale route cache for this order
-      botRoutes.delete(`${order.id}:accepted`);
-      botRoutes.delete(`${order.id}:picked_up`);
-      botRoutes.delete(`${order.id}:in_transit`); // taken by another shipper
-      emitOrderUpdate(order.id, 'accepted');
-      io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: 'accepted' });
-      console.log(`🛵 ${shipper.user.username} accepted order`);
-    }
-
-    // Progress active orders (only bot shippers' orders)
+    // === PART 1: Move active orders ===
     const active = await prisma.order.findMany({
       where: {
         status: { in: ['accepted', 'picked_up', 'in_transit'] },
         shipper: { user: { username: { in: [...BOT_SHIPPERS] } } },
       },
       include: { shipper: { include: { user: true } } },
-      take: 10,
+      take: 20,
     });
 
     for (const order of active) {
       if (!order.shipper) continue;
 
       const SPEED: Record<string, number> = {
-        'Xe Đạp': 0.000114,  // ~15 km/h @ 3s tick
-        'Xe Máy': 0.000270,  // ~35 km/h @ 3s tick
-        'Ô Tô':   0.000225,  // ~30 km/h @ 3s tick
+        'Xe Đạp': 0.000114,
+        'Xe Máy': 0.000270,
+        'Ô Tô':   0.000225,
       };
-      const speed = (SPEED[order.shipper.vehicle] || 0.00090) * (0.9 + Math.random() * 0.2);
-
+      const speed = (SPEED[order.shipper.vehicle] || 0.000270) * (0.9 + Math.random() * 0.2);
       const targetLat = order.status === 'accepted' ? order.pickupLat : order.deliveryLat;
       const targetLng = order.status === 'accepted' ? order.pickupLng : order.deliveryLng;
 
-      // Get or fetch route for this order+phase
       const routeKey = `${order.id}:${order.status}`;
       let route = botRoutes.get(routeKey);
       if (!route) {
@@ -220,55 +172,67 @@ async function botShipperProcess() {
       }
 
       if (route.idx >= route.waypoints.length - 1) {
-        // Arrived at end of route — advance order status
         botRoutes.delete(routeKey);
-
         const nextStatus =
           order.status === 'accepted' ? 'picked_up' :
           order.status === 'picked_up' ? 'in_transit' :
           order.status === 'in_transit' ? 'delivered' : null;
-
         if (!nextStatus) continue;
-
         const updateData: any = { status: nextStatus };
         if (nextStatus === 'picked_up') updateData.pickedUpAt = new Date();
         if (nextStatus === 'delivered') updateData.deliveredAt = new Date();
-
         await prisma.order.update({ where: { id: order.id }, data: updateData });
         emitOrderUpdate(order.id, nextStatus);
         io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
-
         if (nextStatus === 'delivered') {
           await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
           await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
-          console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
+          console.log(`✅ ${order.shipper.user.username} delivered`);
         }
         continue;
       }
 
-      // Advance along waypoints — interpolate within segment if needed
       let remaining = speed;
       while (remaining > 0 && route.idx < route.waypoints.length - 1) {
         const [nextLat, nextLng] = route.waypoints[route.idx + 1];
         const [currLat, currLng] = route.waypoints[route.idx];
         const d = Math.sqrt(Math.pow(nextLat - currLat, 2) + Math.pow(nextLng - currLng, 2));
-        if (d <= remaining) {
-          remaining -= d;
-          route.idx++;
-        } else {
-          // Interpolate within segment — move partway and update current position
+        if (d <= remaining) { remaining -= d; route.idx++; }
+        else {
           const frac = remaining / d;
-          route.waypoints[route.idx] = [
-            currLat + (nextLat - currLat) * frac,
-            currLng + (nextLng - currLng) * frac,
-          ];
+          route.waypoints[route.idx] = [currLat + (nextLat - currLat) * frac, currLng + (nextLng - currLng) * frac];
           remaining = 0;
         }
       }
-
       const [newLat, newLng] = route.waypoints[route.idx];
       await prisma.shipper.update({ where: { id: order.shipper.id }, data: { lat: newLat, lng: newLng } });
       io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: order.shipper.id, lat: newLat, lng: newLng, orderId: order.id });
+    }
+
+    // === PART 2: Accept new confirmed orders (free shippers only) ===
+    const shippers = await prisma.shipper.findMany({
+      where: { isOnline: true, user: { username: { in: [...BOT_SHIPPERS] } } },
+      include: { user: true },
+    });
+    const busyIds = new Set(active.map(o => o.shipperId!));
+    const freeShippers = shippers.filter(s => !busyIds.has(s.id));
+    if (freeShippers.length > 0) {
+      const pending = await prisma.order.findMany({
+        where: { status: 'confirmed', expiresAt: { gt: new Date() } },
+        take: freeShippers.length, orderBy: { createdAt: 'asc' },
+      });
+      for (let i = 0; i < Math.min(pending.length, freeShippers.length); i++) {
+        const order = pending[i], shipper = freeShippers[i];
+        const result = await prisma.order.updateMany({ where: { id: order.id, status: 'confirmed' }, data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() } });
+        if (result.count === 0) continue;
+        await prisma.shipper.update({ where: { id: shipper.id }, data: { lat: order.pickupLat + (Math.random()-0.5)*0.01, lng: order.pickupLng + (Math.random()-0.5)*0.01 } });
+        botRoutes.delete(`${order.id}:accepted`);
+        botRoutes.delete(`${order.id}:picked_up`);
+        botRoutes.delete(`${order.id}:in_transit`);
+        emitOrderUpdate(order.id, 'accepted');
+        io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: 'accepted' });
+        console.log(`🛵 ${shipper.user.username} accepted order`);
+      }
     }
   } catch (e) { console.error('Bot shipper error:', e); }
 }
