@@ -34,7 +34,7 @@ export function canSwitchToRole(level: number, role: string): boolean {
 export const XP_REWARDS = {
   dailyLogin: 10,
   placeOrder: 5,
-  reviewSubmitted: 5,
+  reviewSubmitted: 10,
   orderDelivered: 10,  // for shipper
   foodSold: 15,         // for shop owner
 } as const;

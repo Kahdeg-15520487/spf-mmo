@@ -108,7 +108,7 @@ export function BuyerDashboard() {
         </div>
         <div className="flex gap-3 mt-2 text-xs text-gray-400 flex-wrap">
           <span>🛒 Đặt hàng: +5 XP</span>
-          <span>⭐ Đánh giá: +5 XP +5 xu</span>
+          <span>⭐ Đánh giá: +10 XP +5 xu</span>
           <span>📅 Điểm danh: +10 XP +500 xu</span>
         </div>
       </div>

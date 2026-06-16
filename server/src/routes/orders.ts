@@ -17,6 +17,7 @@ async function getOsrmEta(fromLng: number, fromLat: number, toLng: number, toLat
 export const orderRouter = Router();
 
 async function addXp(userId: string, amount: number) {
+  try {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.isBot) return;
   const newXp = user.xp + amount;
@@ -27,6 +28,7 @@ async function addXp(userId: string, amount: number) {
     newLevel++;
   }
   await prisma.user.update({ where: { id: userId }, data: { xp: newXp, level: newLevel } });
+  } catch (e) { console.error('addXp failed:', e); }
 }
 
 orderRouter.get('/', async (req: Request, res: Response) => {
@@ -130,10 +132,10 @@ orderRouter.post('/', async (req: Request, res: Response) => {
       include: { items: { include: { menuItem: true } }, shop: { select: { name: true } } },
     });
 
-    res.status(201).json(order);
-
-    // Award XP to buyer for placing order
+    // Award XP BEFORE sending response
     await addXp(buyerId, XP_REWARDS.placeOrder);
+
+    res.status(201).json(order);
 
     io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'pending' });
   } catch (error) { console.error('Lỗi tạo đơn:', error); res.status(500).json({ error: 'Không thể tạo đơn hàng' }); }

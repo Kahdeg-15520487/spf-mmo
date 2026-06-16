@@ -5,6 +5,7 @@ import { XP_REWARDS, XU_REWARDS, XP_PER_LEVEL } from '../progression';
 export const reviewRouter = Router();
 
 async function addXpAndXu(userId: string, xp: number, xu: number) {
+  try {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.isBot) return;
   const newXp = user.xp + xp;
@@ -12,6 +13,7 @@ async function addXpAndXu(userId: string, xp: number, xu: number) {
   let remainingXp = newXp;
   while (remainingXp >= XP_PER_LEVEL(newLevel)) { remainingXp -= XP_PER_LEVEL(newLevel); newLevel++; }
   await prisma.user.update({ where: { id: userId }, data: { xp: newXp, level: newLevel, balance: { increment: xu } } });
+  } catch (e) { console.error('addXpAndXu failed:', e); }
 }
 
 reviewRouter.post('/', async (req: Request, res: Response) => {
@@ -34,10 +36,10 @@ reviewRouter.post('/', async (req: Request, res: Response) => {
       await prisma.shipper.update({ where: { id: order.shipperId }, data: { rating: Math.round(avg * 10) / 10 } });
     }
 
-    res.status(201).json(review);
-
-    // Award XP + xu to buyer for reviewing
+    // Award XP + xu BEFORE sending response
     await addXpAndXu(buyerId, XP_REWARDS.reviewSubmitted, XU_REWARDS.reviewSubmitted);
+
+    res.status(201).json(review);
   } catch (error) { res.status(500).json({ error: 'Không thể gửi đánh giá' }); }
 });
 
