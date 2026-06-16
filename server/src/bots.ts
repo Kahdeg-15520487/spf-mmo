@@ -144,6 +144,36 @@ async function botShipperProcess() {
     });
 
     for (const order of active) {
+      if (!order.shipper) continue;
+
+      // Target: go to shop for pickup, go to delivery address after
+      const targetLat = order.status === 'accepted' ? order.pickupLat : order.deliveryLat;
+      const targetLng = order.status === 'accepted' ? order.pickupLng : order.deliveryLng;
+      const currentLat = order.shipper.lat;
+      const currentLng = order.shipper.lng;
+
+      // Move 20% towards target each tick
+      const newLat = currentLat + (targetLat - currentLat) * 0.2;
+      const newLng = currentLng + (targetLng - currentLng) * 0.2;
+
+      // Update shipper position
+      await prisma.shipper.update({
+        where: { id: order.shipper.id },
+        data: { lat: newLat, lng: newLng },
+      });
+
+      // Emit location update to buyer watching this order
+      io.to(`order:${order.id}`).emit('shipper:location-update', {
+        shipperId: order.shipper.id,
+        lat: newLat,
+        lng: newLng,
+        orderId: order.id,
+      });
+
+      // Check if close enough to target to advance status
+      const dist = Math.sqrt(Math.pow(newLat - targetLat, 2) + Math.pow(newLng - targetLng, 2));
+      if (dist > 0.001) continue; // not there yet (~100m)
+
       const nextStatus =
         order.status === 'accepted' ? 'picked_up' :
         order.status === 'picked_up' ? 'in_transit' :
@@ -159,7 +189,7 @@ async function botShipperProcess() {
       emitOrderUpdate(order.id, nextStatus);
       io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
 
-      if (nextStatus === 'delivered' && order.shipper) {
+      if (nextStatus === 'delivered') {
         await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
         await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
         console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
