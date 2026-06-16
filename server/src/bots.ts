@@ -56,18 +56,13 @@ async function botBuyerPlaceOrder() {
       if (item) foodCost += item.price * p.quantity;
     }
     const deliveryFee = 5;
-    const total = foodCost + deliveryFee;
 
-    if (buyer.balance < total) return;
-
-    await prisma.user.update({ where: { id: buyer.id }, data: { balance: { decrement: total } } });
-    await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { increment: foodCost } } });
-
+    // Bots don't need balance — just create the order directly
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     const order = await prisma.order.create({
       data: {
         buyerId: buyer.id, shopId: shop.id,
-        totalAmount: total, deliveryFee,
+        totalAmount: foodCost + deliveryFee, deliveryFee,
         pickupAddress: shop.address, pickupLat: shop.lat, pickupLng: shop.lng,
         deliveryAddress: buyer.homeAddress || `${buyer.username}'s Location`,
         deliveryLat: buyer.homeLat || 10.77, deliveryLng: buyer.homeLng || 106.67,
@@ -83,7 +78,7 @@ async function botBuyerPlaceOrder() {
     emitOrderUpdate(order.id, 'confirmed');
     io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'confirmed' });
 
-    console.log(`🤖 ${buyer.username} ordered from ${shop.name} — ${total} xu`);
+    console.log(`🤖 ${buyer.username} ordered from ${shop.name} — ${foodCost + deliveryFee} xu (bot)`);
   } catch (e) { console.error('Bot buyer error:', e); }
 }
 
@@ -160,10 +155,9 @@ async function botShipperProcess() {
       emitOrderUpdate(order.id, nextStatus);
       io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
 
-      if (nextStatus === 'delivered' && order.shipper) {
-        await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
+      if (nextStatus === 'delivered') {
         await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
-        console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
+        console.log(`✅ ${order.shipper?.user?.username || 'bot'} delivered`);
       }
     }
   } catch (e) { console.error('Bot shipper error:', e); }
