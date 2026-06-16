@@ -23,6 +23,8 @@ export function OrderTracker({ order }: { order: Order }) {
   const routeLineRef = useRef<L.Polyline | null>(null);
   const lastRouteUpdateRef = useRef<number>(0);
   const lastRouteFromRef = useRef<{lat: number, lng: number} | null>(null);
+  const orderRef = useRef(order);
+  orderRef.current = order; // always latest
 
   const updateRoute = async (fromLat: number, fromLng: number) => {
     const map = mapRef.current;
@@ -42,8 +44,9 @@ export function OrderTracker({ order }: { order: Order }) {
     lastRouteUpdateRef.current = now;
     lastRouteFromRef.current = { lat: fromLat, lng: fromLng };
 
-    const targetLat = order.status === 'picked_up' || order.status === 'in_transit' ? order.deliveryLat : order.pickupLat;
-    const targetLng = order.status === 'picked_up' || order.status === 'in_transit' ? order.deliveryLng : order.pickupLng;
+    const o = orderRef.current;
+    const targetLat = o.status === 'picked_up' || o.status === 'in_transit' ? o.deliveryLat : o.pickupLat;
+    const targetLng = o.status === 'picked_up' || o.status === 'in_transit' ? o.deliveryLng : o.pickupLng;
     if (!targetLat || !targetLng) return;
     try {
       const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${targetLng},${targetLat}?geometries=geojson&overview=full`;
@@ -103,6 +106,12 @@ export function OrderTracker({ order }: { order: Order }) {
     mapRef.current = map;
     return () => { destroyed = true; map.remove(); mapRef.current = null; };
   }, [order.id]);
+
+  // Force route redraw when status changes
+  useEffect(() => {
+    lastRouteUpdateRef.current = 0;
+    lastRouteFromRef.current = null;
+  }, [order.status]);
 
   // Live shipper position via socket
   useEffect(() => {
