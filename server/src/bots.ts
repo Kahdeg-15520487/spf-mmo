@@ -158,7 +158,7 @@ async function botShipperProcess() {
       // If stuck in accepted for too long, teleport shipper near pickup
       if (order.status === 'accepted' && order.acceptedAt) {
         const stuckMs = Date.now() - new Date(order.acceptedAt).getTime();
-        if (stuckMs > 2 * 60 * 1000) { // 2 min
+        if (stuckMs > 30 * 1000) { // 30s
           await prisma.shipper.update({
             where: { id: order.shipper.id },
             data: {
