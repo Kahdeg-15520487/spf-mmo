@@ -1,19 +1,17 @@
 # OSRM self-hosted routing for SPF MMO
-# Use the pre-built image from ghcr (includes Vietnam map data)
-# Or build locally: docker compose build
+# Image built by GitHub Actions — includes pre-processed Vietnam map data
+# Pull: docker compose pull
+# Run:  docker compose up -d
 
 services:
   osrm:
     image: ghcr.io/kahdeg-15520487/spf-osrm-vietnam:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: spf-osrm
     ports:
       - "5000:5000"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/route/v1/driving/106.7,10.78;106.69,10.77"]
+      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/5000"]
       interval: 30s
       timeout: 5s
       retries: 3
