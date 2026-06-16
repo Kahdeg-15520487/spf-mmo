@@ -149,7 +149,7 @@ async function main() {
   for (const b of buyerData) {
     await prisma.user.upsert({
       where: { username: b.username },
-      update: { balance: 0, homeZoneId: b.zoneId },
+      update: { balance: 0, homeZoneId: b.zoneId, homeAddress: addrMap[b.zoneId] || b.zoneId, homeLat: 10.77 + Math.random() * 0.08, homeLng: 106.63 + Math.random() * 0.14 },
       create: {
         username: b.username, balance: 0, role: 'buyer',
         homeZoneId: b.zoneId, homeAddress: addrMap[b.zoneId] || b.zoneId,
