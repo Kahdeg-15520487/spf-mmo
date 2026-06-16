@@ -208,7 +208,7 @@ export function BuyerDashboard() {
               )}
               {['confirmed','accepted','picked_up','in_transit'].includes(order.status) && <OrderTracker order={order} />}
               {(order.status === 'pending' || order.status === 'confirmed') && <button onClick={() => cancelOrder(order.id)} className="mt-2 text-xs text-red-500 hover:text-red-700 underline">{t.buyer.cancelOrder}</button>}
-              {order.status === 'delivered' && !order.review && <ReviewForm order={order} onDone={loadOrders} />}
+              {order.status === 'delivered' && !order.review && <ReviewForm order={order} onDone={() => { loadOrders(); refreshUser(); }} />}
               {order.review && <div className="mt-2 text-xs text-gray-400">{t.buyer.reviewed(order.review.shipperRating||0, order.review.shopRating||0)}</div>}
             </div>
           ))}
