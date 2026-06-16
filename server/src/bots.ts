@@ -1,16 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 import { Server as SocketIOServer } from 'socket.io';
 
-// Only these seeded accounts act as bots — never touch real player accounts
+// All seeded accounts are bots — every shop, buyer, and shipper runs automatically
 const BOT_BUYERS = new Set([
+  'bob',
   'buyer_em', 'buyer_hoa', 'buyer_long', 'buyer_thao',
   'buyer_minh', 'buyer_trang', 'buyer_hai', 'buyer_nam', 'buyer_phuc',
 ]);
 const BOT_SHOPS = new Set([
+  'alice', 'diana',
   'bep_viet', 'sushi_master', 'banh_mi_king',
   'seafood_grill', 'chef_minh', 'dessert_house',
 ]);
 const BOT_SHIPPERS = new Set([
+  'charlie',
   'shipper_linh', 'shipper_tuan', 'shipper_mai',
   'shipper_hung', 'shipper_anh', 'shipper_dat',
 ]);
