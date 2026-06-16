@@ -69,7 +69,7 @@ export function BuyerDashboard() {
     setLoading(true);
     const items = Array.from(cart.entries()).map(([menuItemId, quantity]) => ({ menuItemId, quantity }));
     const res = await fetch(`${API_URL}/api/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ buyerId: user.id, shopId: selectedShop.id, items }) });
-    if (res.ok) { setCart(new Map()); setSelectedShop(null); loadOrders(); loadShops(); refreshUser(); } else { const err = await res.json(); alert(err.error || t.general.orderFailed); }
+    if (res.ok) { setCart(new Map()); setSelectedShop(null); setActiveTab('orders'); loadOrders(); loadShops(); refreshUser(); } else { const err = await res.json(); alert(err.error || t.general.orderFailed); }
     setLoading(false);
   };
 
