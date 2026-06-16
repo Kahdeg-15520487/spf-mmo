@@ -6,7 +6,7 @@ async function main() {
   console.log('🌱 Seeding SPF MMO database with bots...');
 
   const shopData = [
-    { username: 'alice', shopName: "Alice's Kitchen", zoneId: 'c-q1-ben-thanh', desc: 'Cơm nhà làm ngon tuyệt! Nguyên liệu tươi mỗi ngày.',
+    { username: 'alice', shopName: "Bếp Nhà Alice", zoneId: 'c-q1-ben-thanh', desc: 'Cơm nhà làm ngon tuyệt! Nguyên liệu tươi mỗi ngày.',
       menu: [
         { name: 'Phở Bò', desc: 'Phở bò truyền thống nước dùng đậm đà', price: 45, cat: 'Súp' },
         { name: 'Bánh Mì', desc: 'Bánh mì thịt nướng giòn tan', price: 25, cat: 'Bánh mì' },
@@ -15,7 +15,7 @@ async function main() {
         { name: 'Cà Phê Sữa Đá', desc: 'Cà phê sữa đá Việt Nam', price: 20, cat: 'Đồ uống' },
         { name: 'Sinh Tố Xoài', desc: 'Xoài tươi xay cùng sữa chua', price: 35, cat: 'Đồ uống' },
       ] },
-    { username: 'diana', shopName: "Diana's Pizza & Pasta", zoneId: 'c-q3-vo-van-tan', desc: 'Ẩm thực Ý phong cách Việt!',
+    { username: 'diana', shopName: "Pizza & Pasta Diana", zoneId: 'c-q3-vo-van-tan', desc: 'Ẩm thực Ý phong cách Việt!',
       menu: [
         { name: 'Pizza Margherita', desc: 'Cà chua, mozzarella, húng quế', price: 80, cat: 'Pizza' },
         { name: 'Mỳ Ý Bolognese', desc: 'Sốt thịt bò đậm đà phô mai', price: 65, cat: 'Mỳ Ý' },
@@ -30,7 +30,7 @@ async function main() {
         { name: 'Gỏi Cuốn', desc: 'Gỏi cuốn tôm thịt (3 cuốn)', price: 28, cat: 'Khai vị' },
         { name: 'Chè Ba Màu', desc: 'Chè đậu xanh, đậu đỏ, thạch', price: 15, cat: 'Tráng miệng' },
       ] },
-    { username: 'sushi_master', shopName: 'Sushi Master', zoneId: 'c-q7-crescent', desc: 'Sushi và sashimi tươi ngon mỗi ngày.',
+    { username: 'sushi_master', shopName: 'Sushi Bậc Thầy', zoneId: 'c-q7-crescent', desc: 'Sushi và sashimi tươi ngon mỗi ngày.',
       menu: [
         { name: 'Sushi Cá Hồi', desc: '6 miếng sushi cá hồi tươi', price: 85, cat: 'Món chính' },
         { name: 'Sashimi Tổng Hợp', desc: 'Cá hồi, cá ngừ, bạch tuộc', price: 120, cat: 'Món chính' },
@@ -38,7 +38,7 @@ async function main() {
         { name: 'Edamame', desc: 'Đậu nành Nhật hấp muối', price: 20, cat: 'Khai vị' },
         { name: 'Trà Xanh Matcha', desc: 'Trà xanh matcha đá', price: 25, cat: 'Đồ uống' },
       ] },
-    { username: 'banh_mi_king', shopName: 'Bánh Mì King', zoneId: 'c-bt-cho-ba-chieu', desc: 'Vua bánh mì — 20 năm kinh nghiệm!',
+    { username: 'banh_mi_king', shopName: 'Vua Bánh Mì', zoneId: 'c-bt-cho-ba-chieu', desc: 'Vua bánh mì — 20 năm kinh nghiệm!',
       menu: [
         { name: 'Bánh Mì Đặc Biệt', desc: 'Thịt nguội, pate, chả, đồ chua', price: 20, cat: 'Bánh mì' },
         { name: 'Bánh Mì Gà Xé', desc: 'Gà xé sả ớt bơ đậu phộng', price: 22, cat: 'Bánh mì' },

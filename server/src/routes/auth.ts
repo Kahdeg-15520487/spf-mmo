@@ -9,7 +9,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const { username } = req.body;
     if (!username || typeof username !== 'string' || username.trim().length === 0) {
-      res.status(400).json({ error: 'Username is required' });
+      res.status(400).json({ error: 'Tên người dùng là bắt buộc' });
       return;
     }
 
@@ -18,22 +18,13 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
     if (!user) {
       user = await prisma.user.create({
-        data: {
-          username: trimmed,
-          balance: 1000.0,
-          role: 'buyer',
-        },
+        data: { username: trimmed, balance: 1000.0, role: 'buyer' },
       });
     }
 
-    res.json({
-      id: user.id,
-      username: user.username,
-      balance: user.balance,
-      role: user.role,
-    });
+    res.json({ id: user.id, username: user.username, balance: user.balance, role: user.role });
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Đăng nhập thất bại' });
   }
 });
 
@@ -42,53 +33,37 @@ authRouter.post('/switch-role', async (req: Request, res: Response) => {
   try {
     const { userId, role } = req.body;
     if (!userId || !role) {
-      res.status(400).json({ error: 'userId and role are required' });
+      res.status(400).json({ error: 'userId và role là bắt buộc' });
       return;
     }
 
     const validRoles = ['buyer', 'shop', 'shipper'];
     if (!validRoles.includes(role)) {
-      res.status(400).json({ error: `Role must be one of: ${validRoles.join(', ')}` });
+      res.status(400).json({ error: `Vai trò phải là: ${validRoles.join(', ')}` });
       return;
     }
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { role },
-    });
+    const user = await prisma.user.update({ where: { id: userId }, data: { role } });
 
-    // Auto-create shop or shipper profile if switching for the first time
     if (role === 'shop') {
       await prisma.shop.upsert({
         where: { ownerId: userId },
-        create: {
-          ownerId: userId,
-          name: `${user.username}'s Shop`,
-          address: 'Downtown District',
-        },
+        create: { ownerId: userId, name: `${user.username} — Shop`, address: 'Chưa chọn địa điểm' },
         update: {},
       });
     }
-
     if (role === 'shipper') {
       await prisma.shipper.upsert({
         where: { userId: userId },
-        create: {
-          userId: userId,
-          vehicle: 'Bicycle',
-        },
+        create: { userId: userId, vehicle: 'Xe Máy' },
         update: {},
       });
     }
 
-    const fullUser = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { shop: true, shipper: true },
-    });
-
+    const fullUser = await prisma.user.findUnique({ where: { id: userId }, include: { shop: true, shipper: true } });
     res.json(fullUser);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to switch role' });
+    res.status(500).json({ error: 'Chuyển vai trò thất bại' });
   }
 });
 
@@ -99,15 +74,13 @@ authRouter.get('/me/:userId', async (req: Request, res: Response) => {
       where: { id: req.params.userId },
       include: { shop: true, shipper: true },
     });
-
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'Không tìm thấy người dùng' });
       return;
     }
-
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get user' });
+    res.status(500).json({ error: 'Lấy thông tin thất bại' });
   }
 });
 
@@ -116,29 +89,24 @@ authRouter.post('/set-home-zone', async (req: Request, res: Response) => {
   try {
     const { userId, zoneId } = req.body;
     if (!userId || !zoneId) {
-      res.status(400).json({ error: 'userId and zoneId are required' });
+      res.status(400).json({ error: 'userId và zoneId là bắt buộc' });
       return;
     }
 
     const zone = getZoneById(zoneId);
     if (!zone || zone.type !== 'residential') {
-      res.status(400).json({ error: 'Invalid residential zone' });
+      res.status(400).json({ error: 'Khu dân cư không hợp lệ' });
       return;
     }
 
     const user = await prisma.user.update({
       where: { id: userId },
-      data: {
-        homeZoneId: zoneId,
-        homeAddress: zone.name,
-        homeLat: zone.lat,
-        homeLng: zone.lng,
-      },
+      data: { homeZoneId: zoneId, homeAddress: zone.name, homeLat: zone.lat, homeLng: zone.lng },
       include: { shop: true, shipper: true },
     });
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to set home zone' });
+    res.status(500).json({ error: 'Đặt khu vực thất bại' });
   }
 });
