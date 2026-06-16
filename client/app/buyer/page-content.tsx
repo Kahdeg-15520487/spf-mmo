@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGame, Shop, MenuItem, Order, API_URL } from '../game-context';
 import { useT } from '../i18n';
 import { Zone } from '../zones';
-import { OrderTracker } from './order-tracker';
 import dynamic from 'next/dynamic';
+const OrderTracker = dynamic(() => import('./order-tracker').then(m => ({ default: m.OrderTracker })), { ssr: false });
 
 const ZoneMapPicker = dynamic(() => import('../components/zone-map-picker'), { ssr: false });
 

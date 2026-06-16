@@ -1,57 +1,94 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Order, useGame } from '../game-context';
 import { useT } from '../i18n';
 
-interface ShipperLocation { shipperId: string; lat: number; lng: number; orderId: string; }
+const OSRM_BASE = 'http://localhost:5000';
+
+const createIcon = (emoji: string, size = 32) =>
+  L.divIcon({
+    html: `<div style="font-size:${size}px;text-align:center;line-height:${size}px">${emoji}</div>`,
+    className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+  });
 
 export function OrderTracker({ order }: { order: Order }) {
   const { socket } = useGame();
   const t = useT();
-  const [shipperLoc, setShipperLoc] = useState<{ lat: number; lng: number } | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const scooterRef = useRef<L.Marker | null>(null);
 
+  // Init map
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    const center = { lat: (order.pickupLat + order.deliveryLat) / 2, lng: (order.pickupLng + order.deliveryLng) / 2 };
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false }).setView([center.lat, center.lng], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    // Pickup + delivery markers
+    L.marker([order.pickupLat, order.pickupLng], { icon: createIcon('🏪', 32) }).addTo(map)
+      .bindPopup(`<b>${order.shop?.name}</b>`);
+    L.marker([order.deliveryLat, order.deliveryLng], { icon: createIcon('📍', 32) }).addTo(map)
+      .bindPopup('Điểm giao hàng');
+
+    // Scooter marker
+    const shipperLat = order.shipper?.lat || order.pickupLat;
+    const shipperLng = order.shipper?.lng || order.pickupLng;
+    scooterRef.current = L.marker([shipperLat, shipperLng], { icon: createIcon('🛵', 36), zIndexOffset: 1000 }).addTo(map);
+
+    // OSRM route
+    (async () => {
+      try {
+        const url = `${OSRM_BASE}/route/v1/driving/${order.pickupLng},${order.pickupLat};${order.deliveryLng},${order.deliveryLat}?geometries=geojson&overview=full`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+          L.polyline(coords, { color: '#3b82f6', weight: 4, opacity: 0.7 }).addTo(map);
+        }
+      } catch {
+        // fallback straight line
+        L.polyline([[order.pickupLat, order.pickupLng], [order.deliveryLat, order.deliveryLng]], { color: '#3b82f6', weight: 3, dashArray: '8,6', opacity: 0.6 }).addTo(map);
+      }
+    })();
+
+    map.fitBounds(L.latLngBounds(
+      [Math.min(order.pickupLat, order.deliveryLat) - 0.005, Math.min(order.pickupLng, order.deliveryLng) - 0.005],
+      [Math.max(order.pickupLat, order.deliveryLat) + 0.005, Math.max(order.pickupLng, order.deliveryLng) + 0.005]
+    ));
+
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
+  }, [order.id]);
+
+  // Live shipper position via socket
   useEffect(() => {
     if (!socket) return;
     socket.emit('order:watch', order.id);
-    const handleLocationUpdate = (data: ShipperLocation) => { if (data.orderId === order.id) setShipperLoc({ lat: data.lat, lng: data.lng }); };
-    socket.on('shipper:location-update', handleLocationUpdate);
-    if (order.shipper?.lat && order.shipper?.lng) setShipperLoc({ lat: order.shipper.lat, lng: order.shipper.lng });
-    return () => { socket.off('shipper:location-update', handleLocationUpdate); socket.emit('order:unwatch', order.id); };
-  }, [socket, order.id, order.shipper]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext('2d'); if (!ctx) return;
-    const w = canvas.width, h = canvas.height;
-    const centerLat = (order.pickupLat + order.deliveryLat) / 2;
-    const centerLng = (order.pickupLng + order.deliveryLng) / 2;
-    const latRange = Math.abs(order.deliveryLat - order.pickupLat) * 1.8;
-    const lngRange = Math.abs(order.deliveryLng - order.pickupLng) * 1.8;
-    const range = Math.max(latRange, lngRange, 0.005);
-    const toX = (lng: number) => ((lng - centerLng) / range) * w + w / 2;
-    const toY = (lat: number) => ((centerLat - lat) / range) * h + h / 2;
+    socket.on('shipper:location-update', (data: { orderId: string; lat: number; lng: number }) => {
+      if (data.orderId !== order.id) return;
+      if (scooterRef.current) scooterRef.current.setLatLng([data.lat, data.lng]);
+      if (mapRef.current) mapRef.current.panTo([data.lat, data.lng], { animate: true, duration: 0.5 });
+    });
 
-    ctx.fillStyle = '#f0f9f0'; ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 0.5;
-    for (let i = 0; i < w; i += 20) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
-    for (let j = 0; j < h; j += 20) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(w, j); ctx.stroke(); }
-    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
-    ctx.beginPath(); ctx.moveTo(toX(order.pickupLng), toY(order.pickupLat)); ctx.lineTo(toX(order.deliveryLng), toY(order.deliveryLat)); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(toX(order.pickupLng), toY(order.pickupLat), 6, 0, Math.PI * 2); ctx.fill(); ctx.fillText('🏪', toX(order.pickupLng) - 8, toY(order.pickupLat) - 8);
-    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(toX(order.deliveryLng), toY(order.deliveryLat), 6, 0, Math.PI * 2); ctx.fill(); ctx.fillText('📍', toX(order.deliveryLng) - 8, toY(order.deliveryLat) - 8);
-    if (shipperLoc) {
-      ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(toX(shipperLoc.lng), toY(shipperLoc.lat), 7, 0, Math.PI * 2); ctx.fill(); ctx.fillText('🛵', toX(shipperLoc.lng) - 10, toY(shipperLoc.lat) - 10);
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(toX(shipperLoc.lng), toY(shipperLoc.lat), 12, 0, Math.PI * 2); ctx.stroke();
-    }
-  }, [order, shipperLoc]);
+    return () => {
+      socket.off('shipper:location-update');
+      socket.emit('order:unwatch', order.id);
+    };
+  }, [socket, order.id]);
 
   return (
-    <div className="mt-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">{t.tracker.tracking} {shipperLoc ? t.tracker.moving : t.tracker.waiting}</p>
-      <canvas ref={canvasRef} width={300} height={200} className="w-full rounded-lg border border-gray-200 dark:border-gray-600" />
-      <div className="flex justify-between text-xs text-gray-400 mt-1"><span>{t.tracker.pickup} {order.shop?.name}</span><span>{t.tracker.delivery}</span></div>
+    <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+      <div className="px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50">
+        🗺️ {t.tracker.tracking}
+      </div>
+      <div ref={containerRef} style={{ height: '200px' }} />
     </div>
   );
 }
