@@ -137,6 +137,9 @@ authRouter.post('/set-home-zone', async (req: Request, res: Response) => {
     const zone = getZoneById(zoneId);
     if (!zone || zone.type !== 'residential') { res.status(400).json({ error: 'Khu dân cư không hợp lệ' }); return; }
 
+    const existing = await prisma.user.findUnique({ where: { id: userId }, select: { homeZoneId: true } });
+    if (existing?.homeZoneId) { res.status(403).json({ error: 'Không thể thay đổi khu vực sinh sống' }); return; }
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: { homeZoneId: zoneId, homeAddress: zone.name, homeLat: zone.lat, homeLng: zone.lng },

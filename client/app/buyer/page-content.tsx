@@ -84,7 +84,7 @@ export function BuyerDashboard() {
     if (res.ok) { const data = await res.json(); localStorage.setItem('spf-user', JSON.stringify(data)); window.location.reload(); }
   };
 
-  useEffect(() => { if (user && !user.homeZoneId) setShowHomePicker(true); }, [user?.id, user?.homeZoneId]);
+  useEffect(() => { if (user && !user.homeZoneId) setShowHomePicker(true); }, [user?.id]);
 
   const statusLabel = (s: string) => (t.orderStatus as any)[s] || s;
 
@@ -114,9 +114,11 @@ export function BuyerDashboard() {
       </div>
 
       {user?.homeZoneId && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center justify-between border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2"><span className="text-lg">🏠</span><div><p className="text-sm font-medium text-blue-800 dark:text-blue-200">{t.buyer.homeBanner}</p><p className="text-xs text-blue-600 dark:text-blue-400">{user.homeAddress}</p></div></div>
-          <button onClick={() => setShowHomePicker(true)} className="text-xs text-blue-500 hover:text-blue-700 underline">{t.buyer.changeHome}</button>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 mb-4 flex items-center border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏠</span>
+            <div><p className="text-sm font-medium text-blue-800 dark:text-blue-200">{t.buyer.homeBanner}</p><p className="text-xs text-blue-600 dark:text-blue-400">{user.homeAddress}</p></div>
+          </div>
         </div>
       )}
 
