@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "state": {
+    "schemaVersion": 1,
+    "runId": "session-019eca49-a063-72a1-90fc-288ff7d472b5",
+    "status": "contract_drafted",
+    "topic": "let's make a mmo about shipping food and stuff from shop to buyer with shipper (3 player roles)",
+    "checklist": [
+      {
+        "id": "objective",
+        "label": "Objective",
+        "status": "complete",
+        "value": "Build a cross-platform (mobile-first, web-supported) food delivery MMO game where 3 player roles (Shop, Buyer, Shipper) interact through a real-world map interface with in-game currency, live order tracking, and a ratings/reviews system.",
+        "updatedAt": "2026-06-15T08:10:51.812Z"
+      },
+      {
+        "id": "scope",
+        "label": "Scope",
+        "status": "complete",
+        "value": "MVP includes: (1) Username-only authentication with role switching (Shop/Buyer/Shipper); (2) Shop: create/manage food menu with names, prices, images; (3) Buyer: browse shops/menus, place orders, pay with in-game virtual currency, live-track shipper on map, accept delivery, rate/review shipper and shop; (4) Shipper: view available orders, accept orders, navigate real-world map (OSM/Leaflet) for pickup and delivery with real-time location broadcasting; (5) Order lifecycle with basic safety nets (auto-expire, buyer cancel before accept, no shipper cancel mid-delivery); (6) Ratings and reviews for both shippers and shop food.",
+        "updatedAt": "2026-06-15T08:11:07.184Z"
+      },
+      {
+        "id": "non_goals",
+        "label": "Non-goals",
+        "status": "complete",
+        "value": "No leaderboard; no real money/payment processing; no real GPS tracking (manual addresses); no non-food items; no email/password auth (username-only for MVP); no shipper mid-delivery cancellation; no admin dashboard; no push notifications.",
+        "updatedAt": "2026-06-15T08:11:07.194Z"
+      },
+      {
+        "id": "constraints",
+        "label": "Constraints",
+        "status": "complete",
+        "value": "Backend: Node.js with TypeScript; mobile-first, cross-platform (web + mobile); real-world map via OpenStreetMap/Leaflet (free, no API key); real-time communication via WebSockets; in-game virtual currency only; single codebase for all platforms.",
+        "updatedAt": "2026-06-15T08:11:07.199Z"
+      },
+      {
+        "id": "success_criteria",
+        "label": "Success criteria",
+        "status": "complete",
+        "value": "A user can: (1) Sign up with username and switch between Shop/Buyer/Shipper roles; (2) As Shop: create a menu with items/prices; (3) As Buyer: browse shops, place an order, pay with virtual cash; (4) As Shipper: accept the order, navigate map for pickup/delivery with the Buyer seeing live position updates; (5) Buyer receives and accepts delivery; (6) Buyer rates/reviews shipper and shop food. Full end-to-end flow works with multiple concurrent users.",
+        "updatedAt": "2026-06-15T08:11:07.211Z"
+      },
+      {
+        "id": "evidence_required",
+        "label": "Evidence required",
+        "status": "complete",
+        "value": "(1) All backend API endpoints working (verified via tests or manual curl); (2) WebSocket real-time tracking functional — shipper position updates visible to buyer; (3) End-to-end walkthrough: user can play all 3 roles in sequence on the same account; (4) Multiple concurrent users can interact (e.g., Buyer A orders from Shop B, Shipper C delivers); (5) Order state machine transitions correctly through all states; (6) Basic safety nets trigger correctly (auto-expire, cancel before accept).",
+        "updatedAt": "2026-06-15T08:11:19.902Z"
+      },
+      {
+        "id": "risks",
+        "label": "Risks",
+        "status": "complete",
+        "value": "(1) Real-time WebSocket reliability — disconnections mid-delivery could corrupt order state; (2) Map integration complexity — Leaflet/OSM tile loading and coordinate management; (3) Cross-platform UI consistency — mobile-first design may not translate perfectly to desktop web; (4) Concurrent order conflicts — multiple shippers accepting same order; (5) In-memory state vs database — need to decide persistence strategy early; (6) Scope creep — food delivery app is feature-rich, temptation to add beyond MVP.",
+        "updatedAt": "2026-06-15T08:11:19.916Z"
+      },
+      {
+        "id": "edge_cases",
+        "label": "Edge cases",
+        "status": "complete",
+        "value": "Orders auto-expire after a time limit if unclaimed; buyers can cancel before a shipper accepts (full refund); shippers cannot cancel mid-delivery; what if no shipper is online (order stays pending until timeout); what if buyer disconnects during live tracking (reconnect and resume); what if shipper disconnects mid-delivery (order state preserved, shipper can reconnect).",
+        "updatedAt": "2026-06-15T08:11:07.216Z"
+      },
+      {
+        "id": "technical_context",
+        "label": "Affected files / technical context",
+        "status": "complete",
+        "value": "Greenfield project at C:/Users/mnguyen/source/repos/spf-mmo — empty repo with only .pi directory. No existing code, patterns, or constraints. Fresh Node.js/TypeScript project to be created from scratch.",
+        "updatedAt": "2026-06-15T08:11:07.226Z"
+      }
+    ],
+    "ambiguities": [],
+    "answers": [
+      {
+        "id": "q1_platform",
+        "question": "What platform and tech stack do you have in mind for this MMO?",
+        "answer": "Both web app and mobile app, mobile-first approach. No specific tech stack preference — wants recommendation.",
+        "createdAt": "2026-06-15T08:02:02.370Z"
+      },
+      {
+        "id": "q2_gameplay_mode",
+        "question": "Real-time vs asynchronous gameplay?",
+        "answer": "Mixed: async order placement, real-time live tracking during delivery.",
+        "createdAt": "2026-06-15T08:02:59.394Z"
+      },
+      {
+        "id": "q3_roles_flow",
+        "question": "What does each role do and how does a transaction flow?",
+        "answer": "Same as Shopee Food / Uber Eats. Shop lists items, Buyer orders, Shipper picks up and delivers. Key: shipper must navigate a world map to deliver.",
+        "createdAt": "2026-06-15T08:04:43.237Z"
+      },
+      {
+        "id": "q4_game_world",
+        "question": "What makes this an MMO/game vs just a delivery platform?",
+        "answer": "Real-world map (Google Maps/OpenStreetMap) with light gamification — points, ratings, badges, leaderboards.",
+        "createdAt": "2026-06-15T08:05:09.120Z"
+      },
+      {
+        "id": "q5_mvp_scope",
+        "question": "MVP scope: real money vs in-game currency, real GPS vs manual addresses?",
+        "answer": "In-game currency only (no real money), fake/manual addresses (no real GPS tracking).",
+        "createdAt": "2026-06-15T08:05:32.558Z"
+      },
+      {
+        "id": "q6_tech_stack",
+        "question": "Preferred backend language/framework?",
+        "answer": "Node.js with TypeScript.",
+        "createdAt": "2026-06-15T08:06:08.907Z"
+      },
+      {
+        "id": "q7_success_criteria",
+        "question": "What's the MVP success criteria?",
+        "answer": "Full food delivery flow: browse shops → order → pay with virtual cash → shipper picks up → live tracking → deliver → accept → rate/review shipper and shop food. No leaderboard in MVP.",
+        "createdAt": "2026-06-15T08:07:40.525Z"
+      },
+      {
+        "id": "q8_roles_per_account",
+        "question": "Can one account play multiple roles?",
+        "answer": "One account can be all 3 roles — switch between them in the app.",
+        "createdAt": "2026-06-15T08:08:29.066Z"
+      },
+      {
+        "id": "q9_auth",
+        "question": "Authentication method for MVP?",
+        "answer": "Simple username-only login (no passwords needed for MVP).",
+        "createdAt": "2026-06-15T08:09:36.016Z"
+      },
+      {
+        "id": "q10_edge_cases",
+        "question": "Edge cases: cancellations, timeouts, no shipper available?",
+        "answer": "Basic safety nets: orders auto-expire after time limit; buyers can cancel before shipper accepts; shippers can't cancel mid-delivery.",
+        "createdAt": "2026-06-15T08:10:21.069Z"
+      },
+      {
+        "id": "q11_shop_items",
+        "question": "What can shops sell? Shop menu management?",
+        "answer": "Food only. Shops can freely create and manage their own menus (add items, set prices).",
+        "createdAt": "2026-06-15T08:10:46.307Z"
+      }
+    ],
+    "explorationFindings": [],
+    "ledger": [
+      {
+        "type": "interview_started",
+        "message": "Started clarification interview: let's make a mmo about shipping food and stuff from shop to buyer with shipper (3 player roles)",
+        "createdAt": "2026-06-15T07:59:18.987Z",
+        "seq": 1
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q1_platform",
+        "createdAt": "2026-06-15T08:02:02.370Z",
+        "data": {
+          "question": "What platform and tech stack do you have in mind for this MMO?"
+        },
+        "seq": 2
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q2_gameplay_mode",
+        "createdAt": "2026-06-15T08:02:59.394Z",
+        "data": {
+          "question": "Real-time vs asynchronous gameplay?"
+        },
+        "seq": 3
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q3_roles_flow",
+        "createdAt": "2026-06-15T08:04:43.237Z",
+        "data": {
+          "question": "What does each role do and how does a transaction flow?"
+        },
+        "seq": 4
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q4_game_world",
+        "createdAt": "2026-06-15T08:05:09.120Z",
+        "data": {
+          "question": "What makes this an MMO/game vs just a delivery platform?"
+        },
+        "seq": 5
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q5_mvp_scope",
+        "createdAt": "2026-06-15T08:05:32.558Z",
+        "data": {
+          "question": "MVP scope: real money vs in-game currency, real GPS vs manual addresses?"
+        },
+        "seq": 6
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q6_tech_stack",
+        "createdAt": "2026-06-15T08:06:08.907Z",
+        "data": {
+          "question": "Preferred backend language/framework?"
+        },
+        "seq": 7
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q7_success_criteria",
+        "createdAt": "2026-06-15T08:07:40.525Z",
+        "data": {
+          "question": "What's the MVP success criteria?"
+        },
+        "seq": 8
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q8_roles_per_account",
+        "createdAt": "2026-06-15T08:08:29.066Z",
+        "data": {
+          "question": "Can one account play multiple roles?"
+        },
+        "seq": 9
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q9_auth",
+        "createdAt": "2026-06-15T08:09:36.016Z",
+        "data": {
+          "question": "Authentication method for MVP?"
+        },
+        "seq": 10
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q10_edge_cases",
+        "createdAt": "2026-06-15T08:10:21.069Z",
+        "data": {
+          "question": "Edge cases: cancellations, timeouts, no shipper available?"
+        },
+        "seq": 11
+      },
+      {
+        "type": "answer_recorded",
+        "message": "Recorded answer q11_shop_items",
+        "createdAt": "2026-06-15T08:10:46.307Z",
+        "data": {
+          "question": "What can shops sell? Shop menu management?"
+        },
+        "seq": 12
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Objective",
+        "createdAt": "2026-06-15T08:10:51.812Z",
+        "data": {
+          "id": "objective",
+          "status": "complete"
+        },
+        "seq": 13
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Scope",
+        "createdAt": "2026-06-15T08:11:07.184Z",
+        "data": {
+          "id": "scope",
+          "status": "complete"
+        },
+        "seq": 14
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Non-goals",
+        "createdAt": "2026-06-15T08:11:07.194Z",
+        "data": {
+          "id": "non_goals",
+          "status": "complete"
+        },
+        "seq": 15
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Constraints",
+        "createdAt": "2026-06-15T08:11:07.199Z",
+        "data": {
+          "id": "constraints",
+          "status": "complete"
+        },
+        "seq": 16
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Success criteria",
+        "createdAt": "2026-06-15T08:11:07.211Z",
+        "data": {
+          "id": "success_criteria",
+          "status": "complete"
+        },
+        "seq": 17
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Edge cases",
+        "createdAt": "2026-06-15T08:11:07.216Z",
+        "data": {
+          "id": "edge_cases",
+          "status": "complete"
+        },
+        "seq": 18
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Affected files / technical context",
+        "createdAt": "2026-06-15T08:11:07.226Z",
+        "data": {
+          "id": "technical_context",
+          "status": "complete"
+        },
+        "seq": 19
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Evidence required",
+        "createdAt": "2026-06-15T08:11:19.902Z",
+        "data": {
+          "id": "evidence_required",
+          "status": "complete"
+        },
+        "seq": 20
+      },
+      {
+        "type": "checklist_updated",
+        "message": "Updated Risks",
+        "createdAt": "2026-06-15T08:11:19.916Z",
+        "data": {
+          "id": "risks",
+          "status": "complete"
+        },
+        "seq": 21
+      },
+      {
+        "type": "contract_drafted",
+        "message": "Drafted Goal Contract",
+        "createdAt": "2026-06-15T08:11:35.718Z",
+        "data": {
+          "handoffCommand": "/goal"
+        },
+        "seq": 22
+      }
+    ],
+    "createdAt": "2026-06-15T07:59:18.987Z",
+    "updatedAt": "2026-06-15T08:11:35.718Z",
+    "goalContract": {
+      "objective": "Build a cross-platform (mobile-first, web-supported) food delivery MMO game where 3 player roles (Shop, Buyer, Shipper) interact through a real-world map interface with in-game currency, live order tracking, and a ratings/reviews system.",
+      "scope": [
+        "Username-only authentication with role switching (Shop/Buyer/Shipper) from a single account",
+        "Shop role: create and manage food menu (items, prices, images)",
+        "Buyer role: browse shops/menus, place orders, pay with in-game virtual currency, live-track shipper on map, accept delivery, rate/review shipper and shop",
+        "Shipper role: view available orders, accept orders, navigate real-world map (OSM/Leaflet) for pickup/delivery with real-time location broadcasting",
+        "Order lifecycle with basic safety nets: auto-expire, buyer cancel before shipper accepts, no shipper mid-delivery cancellation",
+        "Ratings and reviews for both shippers and shop food"
+      ],
+      "nonGoals": [
+        "No leaderboard",
+        "No real money or payment processing",
+        "No real GPS tracking (manual addresses only)",
+        "No non-food items (food only)",
+        "No email/password auth (username-only for MVP)",
+        "No shipper mid-delivery cancellation",
+        "No admin dashboard",
+        "No push notifications"
+      ],
+      "successCriteria": [
+        "User can sign up with username and switch between all 3 roles",
+        "As Shop: create menu with items and prices",
+        "As Buyer: browse shops, place order, pay with virtual cash",
+        "As Shipper: accept order, navigate map for pickup/delivery with Buyer seeing live position updates",
+        "Buyer receives and accepts delivery",
+        "Buyer rates/reviews shipper and shop food",
+        "Full end-to-end flow works with multiple concurrent users"
+      ],
+      "constraints": [
+        "Backend: Node.js with TypeScript",
+        "Mobile-first, cross-platform (web + mobile)",
+        "Real-world map via OpenStreetMap/Leaflet (free, no API key)",
+        "Real-time communication via WebSockets",
+        "In-game virtual currency only",
+        "Single codebase for all platforms",
+        "Greenfield project — no existing code to integrate with"
+      ],
+      "evidenceRequired": [
+        "All backend API endpoints working (tests or manual curl)",
+        "WebSocket real-time tracking functional — shipper position updates visible to buyer",
+        "End-to-end walkthrough: single user plays all 3 roles in sequence",
+        "Multiple concurrent users can interact (Buyer orders from Shop, Shipper delivers)",
+        "Order state machine transitions correctly through all states",
+        "Basic safety nets trigger correctly (auto-expire, cancel before accept)"
+      ],
+      "risks": [
+        "Real-time WebSocket reliability — disconnections mid-delivery could corrupt order state",
+        "Map integration complexity — Leaflet/OSM tile loading and coordinate management",
+        "Cross-platform UI consistency — mobile-first design may not translate perfectly to desktop web",
+        "Concurrent order conflicts — multiple shippers accepting same order",
+        "In-memory state vs database — need to decide persistence strategy early",
+        "Scope creep — food delivery app is feature-rich, temptation to add beyond MVP"
+      ],
+      "suggestedSubgoals": [
+        "1. Project scaffolding: Initialize monorepo with Node.js/TypeScript backend, React/Next.js frontend, WebSocket server, and database schema",
+        "2. Auth & role system: Username-only login, role switching between Shop/Buyer/Shipper",
+        "3. Shop management: CRUD for shop menus (items, prices, images)",
+        "4. Buyer ordering: Browse shops, cart, place order, virtual currency payment",
+        "5. Shipper system: Order pool, accept orders, map navigation with Leaflet/OSM",
+        "6. Real-time delivery tracking: WebSocket-based shipper position broadcasting visible to buyer",
+        "7. Order lifecycle: State machine (pending → accepted → picked-up → in-transit → delivered), auto-expire, buyer cancel before accept",
+        "8. Ratings & reviews: Post-delivery rating/review for shipper and shop food"
+      ],
+      "handoffCommand": "/goal",
+      "draftedAt": "2026-06-15T08:11:35.718Z"
+    }
+  },
+  "snapshotSeq": 22,
+  "writtenAt": "2026-06-16T04:05:18.503Z"
+}
