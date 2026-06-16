@@ -13,6 +13,9 @@ const ZoneMapPicker = dynamic(() => import('../components/zone-map-picker'), { s
 export function BuyerDashboard() {
   const { user, socket, refreshUser } = useGame();
   const t = useT();
+
+  // Always refresh user data on mount
+  useEffect(() => { refreshUser(); }, []);
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
