@@ -11,7 +11,7 @@
     "build:server": "cd server && npm run build",
     "build:client": "cd client && npm run build",
     "db:push": "cd server && npx prisma db push",
-    "db:seed": "cd server && npx prisma db seed"
+    "db:seed": "cd server && npx prisma db push && npx tsx prisma/seed.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
