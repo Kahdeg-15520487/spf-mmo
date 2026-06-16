@@ -59,22 +59,25 @@ process.on('SIGINT', async () => {
 // Auto-expire stale orders every 60 seconds
 setInterval(async () => {
   try {
-    const count = await prisma.order.updateMany({
-      where: { status: 'pending', expiresAt: { lt: new Date() } },
-      data: { status: 'expired' },
+    // Find orders needing expiry in a single pass (no double-refund risk)
+    const toExpire = await prisma.order.findMany({
+      where: { status: { in: ['pending', 'confirmed'] }, expiresAt: { lt: new Date() } },
     });
-    if (count.count > 0) {
-      // Refund buyers for auto-expired orders
-      const expired = await prisma.order.findMany({ where: { status: 'expired' } });
-      for (const order of expired) {
-        const foodCost = order.totalAmount - order.deliveryFee;
-        await prisma.user.update({ where: { id: order.buyerId }, data: { balance: { increment: order.totalAmount } } });
-        const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
-        if (shop) await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { decrement: foodCost } } });
-      }
-      console.log(`⏰ Auto-expired ${count.count} stale orders`);
+    for (const order of toExpire) {
+      // Atomic: only expire if still in original status (prevents double-processing)
+      const updated = await prisma.order.updateMany({
+        where: { id: order.id, status: order.status },
+        data: { status: 'expired' },
+      });
+      if (updated.count === 0) continue; // already expired by another tick
+
+      const foodCost = order.totalAmount - order.deliveryFee;
+      await prisma.user.update({ where: { id: order.buyerId }, data: { balance: { increment: order.totalAmount } } });
+      const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
+      if (shop) await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { decrement: foodCost } } });
     }
-  } catch { /* silently ignore */ }
+    if (toExpire.length > 0) console.log(`⏰ Auto-expired ${toExpire.length} stale orders`);
+  } catch (e) { console.error('Auto-expire error:', e); }
 }, 60000);
 
 console.log('⏰ Auto-expire worker started (checks every 60s)');

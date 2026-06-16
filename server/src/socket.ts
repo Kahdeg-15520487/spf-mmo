@@ -27,15 +27,14 @@ export function setupSocketHandlers(io: SocketIOServer) {
 
       // If shipper, update online status
       if (role === 'shipper') {
-        const shipper = await prisma.shipper.findUnique({ where: { userId } });
-        if (shipper) {
-          await prisma.shipper.update({
-            where: { id: shipper.id },
-            data: { isOnline: true },
-          });
-          socket.join('shippers');
-          io.to('shippers').emit('shipper:online', shipper.id);
-        }
+        try {
+          const shipper = await prisma.shipper.findUnique({ where: { userId } });
+          if (shipper) {
+            await prisma.shipper.update({ where: { id: shipper.id }, data: { isOnline: true } });
+            socket.join('shippers');
+            io.to('shippers').emit('shipper:online', shipper.id);
+          }
+        } catch (e) { console.error('Socket join shipper error:', e); }
       }
 
       console.log(`👤 User ${userId} joined as ${role}`);
@@ -43,23 +42,14 @@ export function setupSocketHandlers(io: SocketIOServer) {
 
     // Shipper sends location update → broadcast to watching buyers
     socket.on('shipper:location', async (data: { shipperId: string; lat: number; lng: number; orderId?: string }) => {
-      const { shipperId, lat, lng, orderId } = data;
+      try {
+        const { shipperId, lat, lng, orderId } = data;
+        await prisma.shipper.update({ where: { id: shipperId }, data: { lat, lng } });
 
-      // Update in database
-      await prisma.shipper.update({
-        where: { id: shipperId },
-        data: { lat, lng },
-      });
-
-      // Broadcast to specific order room if provided
-      if (orderId) {
-        io.to(`order:${orderId}`).emit('shipper:location-update', {
-          shipperId,
-          lat,
-          lng,
-          orderId,
-        });
-      }
+        if (orderId) {
+          io.to(`order:${orderId}`).emit('shipper:location-update', { shipperId, lat, lng, orderId });
+        }
+      } catch (e) { console.error('Socket location error:', e); }
     });
 
     // Buyer starts watching an order (for live tracking)
@@ -99,6 +89,7 @@ export function setupSocketHandlers(io: SocketIOServer) {
 
     // Disconnect
     socket.on('disconnect', async () => {
+      try {
       console.log(`🔌 Client disconnected: ${socket.id}`);
 
       // Clean up user socket tracking
@@ -123,6 +114,7 @@ export function setupSocketHandlers(io: SocketIOServer) {
         watchers.delete(socket.id);
         if (watchers.size === 0) orderWatchers.delete(orderId);
       }
+      } catch (e) { console.error('Socket disconnect error:', e); }
     });
   });
 }

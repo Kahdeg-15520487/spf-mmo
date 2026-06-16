@@ -81,7 +81,7 @@ async function botBuyerPlaceOrder() {
     io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'confirmed' });
 
     console.log(`🤖 ${buyer.username} ordered from ${shop.name} — ${total} xu`);
-  } catch { /* silently continue */ }
+  } catch (e) { console.error('Bot buyer error:', e); }
 }
 
 async function botShipperProcess() {
@@ -101,10 +101,11 @@ async function botShipperProcess() {
 
     for (const order of pending) {
       const shipper = shippers[Math.floor(Math.random() * shippers.length)];
-      await prisma.order.update({
-        where: { id: order.id },
+      const result = await prisma.order.updateMany({
+        where: { id: order.id, status: 'confirmed' },
         data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() },
       });
+      if (result.count === 0) continue; // taken by another shipper
       emitOrderUpdate(order.id, 'accepted');
       io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: 'accepted' });
       console.log(`🛵 ${shipper.user.username} accepted order`);
@@ -142,7 +143,7 @@ async function botShipperProcess() {
         console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
       }
     }
-  } catch { /* silently continue */ }
+  } catch (e) { console.error('Bot shipper error:', e); }
 }
 
 let buyerInterval: ReturnType<typeof setInterval> | null = null;

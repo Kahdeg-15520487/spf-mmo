@@ -79,28 +79,28 @@ shipperRouter.post('/:id/accept-order', async (req: Request, res: Response) => {
       return;
     }
 
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        shipperId: shipper.id,
-        status: 'accepted',
-        acceptedAt: new Date(),
-      },
-      include: {
-        buyer: { select: { id: true, username: true } },
-        shop: { select: { id: true, name: true, lat: true, lng: true, address: true } },
-        shipper: { select: { id: true, vehicle: true, user: { select: { username: true } } } },
-        items: { include: { menuItem: true } },
-      },
-    });
+    // Atomic accept — only succeeds if order is still confirmed
+    try {
+      const updated = await prisma.order.update({
+        where: { id: orderId, status: 'confirmed' },
+        data: { shipperId: shipper.id, status: 'accepted', acceptedAt: new Date() },
+        include: {
+          buyer: { select: { id: true, username: true } },
+          shop: { select: { id: true, name: true, lat: true, lng: true, address: true } },
+          shipper: { select: { id: true, vehicle: true, user: { select: { username: true } } } },
+          items: { include: { menuItem: true } },
+        },
+      });
 
-    res.json(updated);
+      res.json(updated);
 
-    // Notify buyer and shop
-    io.to(`user:${updated.buyerId}`).emit('order:updated', { orderId, status: 'accepted' });
-    if (updated.shop) {
-      const shop = await prisma.shop.findUnique({ where: { id: updated.shopId } });
-      if (shop) io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId, status: 'accepted' });
+      io.to(`user:${updated.buyerId}`).emit('order:updated', { orderId, status: 'accepted' });
+      if (updated.shop) {
+        const shop = await prisma.shop.findUnique({ where: { id: updated.shopId } });
+        if (shop) io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId, status: 'accepted' });
+      }
+    } catch {
+      res.status(409).json({ error: 'Order was already taken by another shipper' });
     }
   } catch (error) {
     res.status(500).json({ error: 'Failed to accept order' });

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Order } from '../game-context';
+import { Order, API_URL } from '../game-context';
 import { Socket } from 'socket.io-client';
 import { COMMERCIAL_ZONES, RESIDENTIAL_ZONES } from '../zones';
 import { useT } from '../i18n';
@@ -124,7 +124,7 @@ export default function ShipperMap({ shipperId, order, socket }: ShipperMapProps
       setCurrentPos({ lat, lng });
 
       // Update server
-      await fetch(`http://localhost:13110/api/shippers/${shipperId}/location`, {
+      await fetch(`${API_URL}/api/shippers/${shipperId}/location`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lat, lng }),

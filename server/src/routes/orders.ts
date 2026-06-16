@@ -186,43 +186,34 @@ orderRouter.post('/', async (req: Request, res: Response) => {
 orderRouter.post('/:id/cancel', async (req: Request, res: Response) => {
   try {
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
-
-    if (!order) {
-      res.status(404).json({ error: 'Order not found' });
-      return;
-    }
+    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
 
     if (order.status !== 'pending' && order.status !== 'confirmed') {
       res.status(400).json({ error: 'Can only cancel pending or confirmed orders' });
       return;
     }
 
-    // Refund buyer and claw back from shop owner
-    const foodCost = order.totalAmount - order.deliveryFee;
-    await prisma.user.update({
-      where: { id: order.buyerId },
-      data: { balance: { increment: order.totalAmount } },
-    });
-    // Claw back food payment from shop owner
-    const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
-    if (shop) {
-      await prisma.user.update({
-        where: { id: shop.ownerId },
-        data: { balance: { decrement: foodCost } },
-      });
-    }
-
-    const updated = await prisma.order.update({
-      where: { id: order.id },
+    // Atomic cancel — only succeeds if order still in cancellable state
+    const updated = await prisma.order.updateMany({
+      where: { id: order.id, status: { in: ['pending', 'confirmed'] } },
       data: { status: 'cancelled' },
     });
 
-    res.json(updated);
+    if (updated.count === 0) {
+      res.status(409).json({ error: 'Order status changed, cannot cancel' });
+      return;
+    }
 
-    // Notify shop owner
+    // Refund buyer and claw back from shop owner (only after successful cancel)
+    const foodCost = order.totalAmount - order.deliveryFee;
+    await prisma.user.update({ where: { id: order.buyerId }, data: { balance: { increment: order.totalAmount } } });
+    const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
     if (shop) {
+      await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { decrement: foodCost } } });
       io.to(`user:${shop.ownerId}`).emit('order:updated', { orderId: order.id, status: 'cancelled' });
     }
+
+    res.json({ ...order, status: 'cancelled' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to cancel order' });
   }
@@ -231,35 +222,23 @@ orderRouter.post('/:id/cancel', async (req: Request, res: Response) => {
 // Expire stale orders (called periodically or on-demand)
 orderRouter.post('/expire-stale', async (_req: Request, res: Response) => {
   try {
-    const expired = await prisma.order.updateMany({
-      where: {
-        status: { in: ['pending', 'confirmed'] },
-        expiresAt: { lt: new Date() },
-      },
-      data: { status: 'expired' },
+    const toExpire = await prisma.order.findMany({
+      where: { status: { in: ['pending', 'confirmed'] }, expiresAt: { lt: new Date() } },
     });
-
-    // Refund buyers for expired orders
-    const expiredOrders = await prisma.order.findMany({
-      where: { status: 'expired' },
-    });
-
-    for (const order of expiredOrders) {
-      const foodCost = order.totalAmount - order.deliveryFee;
-      await prisma.user.update({
-        where: { id: order.buyerId },
-        data: { balance: { increment: order.totalAmount } },
+    let count = 0;
+    for (const order of toExpire) {
+      const result = await prisma.order.updateMany({
+        where: { id: order.id, status: order.status },
+        data: { status: 'expired' },
       });
+      if (result.count === 0) continue; // already processed
+      count++;
+      const foodCost = order.totalAmount - order.deliveryFee;
+      await prisma.user.update({ where: { id: order.buyerId }, data: { balance: { increment: order.totalAmount } } });
       const shop = await prisma.shop.findUnique({ where: { id: order.shopId } });
-      if (shop) {
-        await prisma.user.update({
-          where: { id: shop.ownerId },
-          data: { balance: { decrement: foodCost } },
-        });
-      }
+      if (shop) await prisma.user.update({ where: { id: shop.ownerId }, data: { balance: { decrement: foodCost } } });
     }
-
-    res.json({ expired: expired.count });
+    res.json({ expired: count });
   } catch (error) {
     res.status(500).json({ error: 'Failed to expire orders' });
   }
