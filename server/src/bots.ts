@@ -201,9 +201,9 @@ async function botShipperProcess() {
       if (!order.shipper) continue;
 
       const SPEED: Record<string, number> = {
-        'Xe Đạp': 0.00038,
-        'Xe Máy': 0.00090,
-        'Ô Tô':   0.00075,
+        'Xe Đạp': 0.000114,  // ~15 km/h @ 3s tick
+        'Xe Máy': 0.000270,  // ~35 km/h @ 3s tick
+        'Ô Tô':   0.000225,  // ~30 km/h @ 3s tick
       };
       const speed = (SPEED[order.shipper.vehicle] || 0.00090) * (0.9 + Math.random() * 0.2);
 
@@ -294,7 +294,7 @@ export function startBots(_prisma: PrismaClient, _io: SocketIOServer) {
 
   shipperInterval = setInterval(() => {
     botShipperProcess();
-  }, 10000);
+  }, 3000);
 
   // Auto-confirm orders at bot shops every 5 seconds
   shopConfirmInterval = setInterval(() => {
