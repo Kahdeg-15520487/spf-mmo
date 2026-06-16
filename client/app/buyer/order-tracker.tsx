@@ -67,8 +67,10 @@ export function OrderTracker({ order }: { order: Order }) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const center = { lat: (order.pickupLat + order.deliveryLat) / 2, lng: (order.pickupLng + order.deliveryLng) / 2 };
-    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false }).setView([center.lat, center.lng], 14);
+    const shipperLat = order.shipper?.lat || order.pickupLat;
+    const shipperLng = order.shipper?.lng || order.pickupLng;
+    const center = { lat: shipperLat || order.pickupLat, lng: shipperLng || order.pickupLng };
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false }).setView([center.lat, center.lng], 15);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
@@ -82,10 +84,9 @@ export function OrderTracker({ order }: { order: Order }) {
         .bindPopup('Điểm giao hàng');
     }
 
-    // Scooter marker
-    const shipperLat = order.shipper?.lat || order.pickupLat;
-    const shipperLng = order.shipper?.lng || order.pickupLng;
-    scooterRef.current = L.marker([shipperLat, shipperLng], { icon: createIcon('🛵', 36), zIndexOffset: 1000 }).addTo(map);
+    // Shipper icon based on vehicle type
+    const vehicleEmoji = order.shipper?.vehicle === 'Xe Đạp' ? '🚲' : order.shipper?.vehicle === 'Ô Tô' ? '🚗' : '🛵';
+    scooterRef.current = L.marker([shipperLat, shipperLng], { icon: createIcon(vehicleEmoji, 36), zIndexOffset: 1000 }).addTo(map);
 
     let destroyed = false;
 
@@ -96,11 +97,9 @@ export function OrderTracker({ order }: { order: Order }) {
       setTimeout(() => updateRoute(initLat, initLng), 100);
     }
 
-    if (order.pickupLat && order.pickupLng && order.deliveryLat && order.deliveryLng) {
-      map.fitBounds(L.latLngBounds(
-        [Math.min(order.pickupLat, order.deliveryLat) - 0.005, Math.min(order.pickupLng, order.deliveryLng) - 0.005],
-        [Math.max(order.pickupLat, order.deliveryLat) + 0.005, Math.max(order.pickupLng, order.deliveryLng) + 0.005]
-      ));
+    // Center on shipper at zoom 15 — don't zoom out to fit all markers
+    if (shipperLat && shipperLng) {
+      map.setView([shipperLat, shipperLng], 15);
     }
 
     mapRef.current = map;
