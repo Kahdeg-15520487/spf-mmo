@@ -1,6 +1,26 @@
 import { PrismaClient } from '@prisma/client';
 import { Server as SocketIOServer } from 'socket.io';
 
+// In-memory route cache: orderId → array of [lat, lng] waypoints + current index
+const botRoutes = new Map<string, { waypoints: [number, number][]; idx: number }>();
+
+async function fetchOsrmRoute(fromLat: number, fromLng: number, toLat: number, toLng: number): Promise<[number, number][]> {
+  try {
+    const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full`;
+    const res = await fetch(url);
+    const data = await res.json() as any;
+    if (data.routes?.[0]) {
+      return data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]] as [number, number]);
+    }
+  } catch {}
+  // Fallback: straight line with intermediate points
+  const steps = 20;
+  return Array.from({ length: steps + 1 }, (_, i) => [
+    fromLat + (toLat - fromLat) * (i / steps),
+    fromLng + (toLng - fromLng) * (i / steps),
+  ] as [number, number]);
+}
+
 // All seeded accounts are bots — every shop, buyer, and shipper runs automatically
 const BOT_BUYERS = new Set([
   'bob',
@@ -157,7 +177,11 @@ async function botShipperProcess() {
           lat: order.pickupLat + (Math.random() - 0.5) * 0.01,
           lng: order.pickupLng + (Math.random() - 0.5) * 0.01,
         },
-      }); // taken by another shipper
+      });
+      // Clear any stale route cache for this order
+      botRoutes.delete(`${order.id}:accepted`);
+      botRoutes.delete(`${order.id}:picked_up`);
+      botRoutes.delete(`${order.id}:in_transit`); // taken by another shipper
       emitOrderUpdate(order.id, 'accepted');
       io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: 'accepted' });
       console.log(`🛵 ${shipper.user.username} accepted order`);
@@ -176,57 +200,69 @@ async function botShipperProcess() {
     for (const order of active) {
       if (!order.shipper) continue;
 
-      // Speed based on vehicle (degrees per 10s tick)
-      // Bicycle: ~15km/h, Motorbike: ~35km/h, Car: ~30km/h (city traffic)
       const SPEED: Record<string, number> = {
-        'Xe Đạp': 0.00038,   // ~15 km/h
-        'Xe Máy': 0.00090,   // ~35 km/h
-        'Ô Tô':   0.00075,   // ~30 km/h
+        'Xe Đạp': 0.00038,
+        'Xe Máy': 0.00090,
+        'Ô Tô':   0.00075,
       };
-      const speed = (SPEED[order.shipper.vehicle] || 0.00090) * (0.9 + Math.random() * 0.2); // ±10% variance
+      const speed = (SPEED[order.shipper.vehicle] || 0.00090) * (0.9 + Math.random() * 0.2);
 
-      // Target: go to shop for pickup, go to delivery address after
       const targetLat = order.status === 'accepted' ? order.pickupLat : order.deliveryLat;
       const targetLng = order.status === 'accepted' ? order.pickupLng : order.deliveryLng;
-      const currentLat = order.shipper.lat;
-      const currentLng = order.shipper.lng;
 
-      // Move fixed step towards target
-      const dLat = targetLat - currentLat;
-      const dLng = targetLng - currentLng;
-      const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+      // Get or fetch route for this order+phase
+      const routeKey = `${order.id}:${order.status}`;
+      let route = botRoutes.get(routeKey);
+      if (!route) {
+        const waypoints = await fetchOsrmRoute(order.shipper.lat, order.shipper.lng, targetLat, targetLng);
+        route = { waypoints, idx: 0 };
+        botRoutes.set(routeKey, route);
+      }
 
-      if (dist > 0.001) {
-        // Move — clamp step to not overshoot target
-        const step = Math.min(speed, dist);
-        const newLat = currentLat + (dLat / dist) * step;
-        const newLng = currentLng + (dLng / dist) * step;
-        await prisma.shipper.update({ where: { id: order.shipper.id }, data: { lat: newLat, lng: newLng } });
-        io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: order.shipper.id, lat: newLat, lng: newLng, orderId: order.id });
+      if (route.idx >= route.waypoints.length - 1) {
+        // Arrived at end of route — advance order status
+        botRoutes.delete(routeKey);
+
+        const nextStatus =
+          order.status === 'accepted' ? 'picked_up' :
+          order.status === 'picked_up' ? 'in_transit' :
+          order.status === 'in_transit' ? 'delivered' : null;
+
+        if (!nextStatus) continue;
+
+        const updateData: any = { status: nextStatus };
+        if (nextStatus === 'picked_up') updateData.pickedUpAt = new Date();
+        if (nextStatus === 'delivered') updateData.deliveredAt = new Date();
+
+        await prisma.order.update({ where: { id: order.id }, data: updateData });
+        emitOrderUpdate(order.id, nextStatus);
+        io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
+
+        if (nextStatus === 'delivered') {
+          await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
+          await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
+          console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
+        }
         continue;
       }
 
-      // Arrived — advance order status
-      const nextStatus =
-        order.status === 'accepted' ? 'picked_up' :
-        order.status === 'picked_up' ? 'in_transit' :
-        order.status === 'in_transit' ? 'delivered' : null;
-
-      if (!nextStatus) continue;
-
-      const updateData: any = { status: nextStatus };
-      if (nextStatus === 'picked_up') updateData.pickedUpAt = new Date();
-      if (nextStatus === 'delivered') updateData.deliveredAt = new Date();
-
-      await prisma.order.update({ where: { id: order.id }, data: updateData });
-      emitOrderUpdate(order.id, nextStatus);
-      io.to(`user:${order.buyerId}`).emit('order:updated', { orderId: order.id, status: nextStatus });
-
-      if (nextStatus === 'delivered') {
-        await prisma.user.update({ where: { id: order.shipper.userId }, data: { balance: { increment: order.deliveryFee } } });
-        await prisma.shipper.update({ where: { id: order.shipperId! }, data: { totalDeliveries: { increment: 1 } } });
-        console.log(`✅ ${order.shipper.user.username} delivered — +${order.deliveryFee} xu`);
+      // Advance along waypoints by speed (may skip multiple waypoints per tick)
+      let remaining = speed;
+      while (remaining > 0 && route.idx < route.waypoints.length - 1) {
+        const [wLat, wLng] = route.waypoints[route.idx + 1];
+        const [cLat, cLng] = route.waypoints[route.idx];
+        const d = Math.sqrt(Math.pow(wLat - cLat, 2) + Math.pow(wLng - cLng, 2));
+        if (d <= remaining) {
+          remaining -= d;
+          route.idx++;
+        } else {
+          break;
+        }
       }
+
+      const [newLat, newLng] = route.waypoints[route.idx];
+      await prisma.shipper.update({ where: { id: order.shipper.id }, data: { lat: newLat, lng: newLng } });
+      io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: order.shipper.id, lat: newLat, lng: newLng, orderId: order.id });
     }
   } catch (e) { console.error('Bot shipper error:', e); }
 }
