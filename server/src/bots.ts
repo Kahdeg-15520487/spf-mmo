@@ -176,20 +176,6 @@ async function botShipperProcess() {
     for (const order of active) {
       if (!order.shipper) continue;
 
-      // If stuck in accepted for too long, teleport shipper near pickup
-      if (order.status === 'accepted' && order.acceptedAt) {
-        const stuckMs = Date.now() - new Date(order.acceptedAt).getTime();
-        if (stuckMs > 30 * 1000) { // 30s
-          await prisma.shipper.update({
-            where: { id: order.shipper.id },
-            data: {
-              lat: order.pickupLat + (Math.random() - 0.5) * 0.002,
-              lng: order.pickupLng + (Math.random() - 0.5) * 0.002,
-            },
-          });
-        }
-      }
-
       // Speed based on vehicle (degrees per 10s tick)
       // Bicycle: ~15km/h, Motorbike: ~35km/h, Car: ~30km/h (city traffic)
       const SPEED: Record<string, number> = {
@@ -210,10 +196,11 @@ async function botShipperProcess() {
       const dLng = targetLng - currentLng;
       const dist = Math.sqrt(dLat * dLat + dLng * dLng);
 
-      if (dist > 0.0003) {
-        // Still moving — advance by one speed step in the direction of target
-        const newLat = currentLat + (dLat / dist) * speed;
-        const newLng = currentLng + (dLng / dist) * speed;
+      if (dist > 0.001) {
+        // Move — clamp step to not overshoot target
+        const step = Math.min(speed, dist);
+        const newLat = currentLat + (dLat / dist) * step;
+        const newLng = currentLng + (dLng / dist) * step;
         await prisma.shipper.update({ where: { id: order.shipper.id }, data: { lat: newLat, lng: newLng } });
         io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: order.shipper.id, lat: newLat, lng: newLng, orderId: order.id });
         continue;

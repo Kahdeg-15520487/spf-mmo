@@ -9,6 +9,7 @@ import { orderRouter } from './routes/orders';
 import { shipperRouter } from './routes/shippers';
 import { reviewRouter } from './routes/reviews';
 import { zonesRouter } from './routes/zones';
+import { debugRouter } from './routes/debug';
 import { setupSocketHandlers } from './socket';
 import { startBots, stopBots } from './bots';
 
@@ -34,6 +35,7 @@ app.use('/api/orders', orderRouter);
 app.use('/api/shippers', shipperRouter);
 app.use('/api/reviews', reviewRouter);
 app.use('/api/zones', zonesRouter);
+app.use('/api/debug', debugRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

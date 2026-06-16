@@ -20,6 +20,45 @@ export function OrderTracker({ order }: { order: Order }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const scooterRef = useRef<L.Marker | null>(null);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+  const lastRouteUpdateRef = useRef<number>(0);
+  const lastRouteFromRef = useRef<{lat: number, lng: number} | null>(null);
+
+  const updateRoute = async (fromLat: number, fromLng: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Throttle: only update every 10s
+    const now = Date.now();
+    if (now - lastRouteUpdateRef.current < 10000) return;
+
+    // Only update if moved >50m from last route draw
+    const last = lastRouteFromRef.current;
+    if (last) {
+      const d = Math.sqrt(Math.pow(fromLat - last.lat, 2) + Math.pow(fromLng - last.lng, 2));
+      if (d < 0.0005) return; // ~50m
+    }
+
+    lastRouteUpdateRef.current = now;
+    lastRouteFromRef.current = { lat: fromLat, lng: fromLng };
+
+    const targetLat = order.status === 'picked_up' || order.status === 'in_transit' ? order.deliveryLat : order.pickupLat;
+    const targetLng = order.status === 'picked_up' || order.status === 'in_transit' ? order.deliveryLng : order.pickupLng;
+    if (!targetLat || !targetLng) return;
+    try {
+      const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${targetLng},${targetLat}?geometries=geojson&overview=full`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.routes?.[0] && mapRef.current) {
+        const coords: [number, number][] = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+        if (routeLineRef.current) {
+          routeLineRef.current.setLatLngs(coords); // update in place — no flicker
+        } else {
+          routeLineRef.current = L.polyline(coords, { color: '#3b82f6', weight: 4, opacity: 0.8 }).addTo(map);
+        }
+      }
+    } catch {}
+  };
 
   // Init map
   useEffect(() => {
@@ -47,22 +86,12 @@ export function OrderTracker({ order }: { order: Order }) {
 
     let destroyed = false;
 
-    // OSRM route
-    (async () => {
-      try {
-        const url = `${OSRM_BASE}/route/v1/driving/${order.pickupLng},${order.pickupLat};${order.deliveryLng},${order.deliveryLat}?geometries=geojson&overview=full`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (!destroyed && data.routes?.[0]) {
-          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
-          L.polyline(coords, { color: '#3b82f6', weight: 4, opacity: 0.7 }).addTo(map);
-        }
-      } catch {
-        if (!destroyed && order.pickupLat && order.deliveryLat) {
-          L.polyline([[order.pickupLat, order.pickupLng], [order.deliveryLat, order.deliveryLng]], { color: '#3b82f6', weight: 3, dashArray: '8,6', opacity: 0.6 }).addTo(map);
-        }
-      }
-    })();
+    // Initial route from shipper's current position
+    const initLat = order.shipper?.lat || order.pickupLat;
+    const initLng = order.shipper?.lng || order.pickupLng;
+    if (initLat && initLng) {
+      setTimeout(() => updateRoute(initLat, initLng), 100);
+    }
 
     if (order.pickupLat && order.pickupLng && order.deliveryLat && order.deliveryLng) {
       map.fitBounds(L.latLngBounds(
@@ -83,7 +112,11 @@ export function OrderTracker({ order }: { order: Order }) {
     socket.on('shipper:location-update', (data: { orderId: string; lat: number; lng: number }) => {
       if (data.orderId !== order.id) return;
       if (scooterRef.current) scooterRef.current.setLatLng([data.lat, data.lng]);
-      if (mapRef.current) mapRef.current.panTo([data.lat, data.lng], { animate: true, duration: 0.5 });
+      // Only pan if scooter is outside current view
+      if (mapRef.current && !mapRef.current.getBounds().contains([data.lat, data.lng])) {
+        mapRef.current.panTo([data.lat, data.lng], { animate: true, duration: 0.5 });
+      }
+      updateRoute(data.lat, data.lng);
     });
 
     return () => {
