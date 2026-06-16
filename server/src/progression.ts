@@ -41,7 +41,7 @@ export const XP_REWARDS = {
 
 // Xu rewards for actions
 export const XU_REWARDS = {
-  dailyLogin: 50,
+  dailyLogin: 500,
   reviewSubmitted: 5,
 } as const;
 
