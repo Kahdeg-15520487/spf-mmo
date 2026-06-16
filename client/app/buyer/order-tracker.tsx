@@ -31,10 +31,14 @@ export function OrderTracker({ order }: { order: Order }) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
     // Pickup + delivery markers
-    L.marker([order.pickupLat, order.pickupLng], { icon: createIcon('🏪', 32) }).addTo(map)
-      .bindPopup(`<b>${order.shop?.name}</b>`);
-    L.marker([order.deliveryLat, order.deliveryLng], { icon: createIcon('📍', 32) }).addTo(map)
-      .bindPopup('Điểm giao hàng');
+    if (order.pickupLat && order.pickupLng) {
+      L.marker([order.pickupLat, order.pickupLng], { icon: createIcon('🏪', 32) }).addTo(map)
+        .bindPopup(`<b>${order.shop?.name}</b>`);
+    }
+    if (order.deliveryLat && order.deliveryLng) {
+      L.marker([order.deliveryLat, order.deliveryLng], { icon: createIcon('📍', 32) }).addTo(map)
+        .bindPopup('Điểm giao hàng');
+    }
 
     // Scooter marker
     const shipperLat = order.shipper?.lat || order.pickupLat;
@@ -57,10 +61,12 @@ export function OrderTracker({ order }: { order: Order }) {
       }
     })();
 
-    map.fitBounds(L.latLngBounds(
-      [Math.min(order.pickupLat, order.deliveryLat) - 0.005, Math.min(order.pickupLng, order.deliveryLng) - 0.005],
-      [Math.max(order.pickupLat, order.deliveryLat) + 0.005, Math.max(order.pickupLng, order.deliveryLng) + 0.005]
-    ));
+    if (order.pickupLat && order.pickupLng && order.deliveryLat && order.deliveryLng) {
+      map.fitBounds(L.latLngBounds(
+        [Math.min(order.pickupLat, order.deliveryLat) - 0.005, Math.min(order.pickupLng, order.deliveryLng) - 0.005],
+        [Math.max(order.pickupLat, order.deliveryLat) + 0.005, Math.max(order.pickupLng, order.deliveryLng) + 0.005]
+      ));
+    }
 
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; };
