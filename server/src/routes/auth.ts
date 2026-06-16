@@ -59,6 +59,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     res.json({
       id: user.id, username: user.username, balance: user.balance, role: user.role,
       level: user.level, xp: user.xp, lastLoginBonus: user.lastLoginBonus,
+      homeZoneId: user.homeZoneId, homeAddress: user.homeAddress, homeLat: user.homeLat, homeLng: user.homeLng,
     });
   } catch (error) {
     res.status(500).json({ error: 'Đăng nhập thất bại' });
