@@ -1,6 +1,10 @@
 name: Build & Publish OSRM Vietnam Image
 
 on:
+  push:
+    paths:
+      - '.github/workflows/build-osrm.yml'
+      - 'osrm/Dockerfile'
   workflow_dispatch:
 
 env:
