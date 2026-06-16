@@ -45,19 +45,22 @@ export function OrderTracker({ order }: { order: Order }) {
     const shipperLng = order.shipper?.lng || order.pickupLng;
     scooterRef.current = L.marker([shipperLat, shipperLng], { icon: createIcon('🛵', 36), zIndexOffset: 1000 }).addTo(map);
 
+    let destroyed = false;
+
     // OSRM route
     (async () => {
       try {
         const url = `${OSRM_BASE}/route/v1/driving/${order.pickupLng},${order.pickupLat};${order.deliveryLng},${order.deliveryLat}?geometries=geojson&overview=full`;
         const res = await fetch(url);
         const data = await res.json();
-        if (data.routes?.[0]) {
+        if (!destroyed && data.routes?.[0]) {
           const coords = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
           L.polyline(coords, { color: '#3b82f6', weight: 4, opacity: 0.7 }).addTo(map);
         }
       } catch {
-        // fallback straight line
-        L.polyline([[order.pickupLat, order.pickupLng], [order.deliveryLat, order.deliveryLng]], { color: '#3b82f6', weight: 3, dashArray: '8,6', opacity: 0.6 }).addTo(map);
+        if (!destroyed && order.pickupLat && order.deliveryLat) {
+          L.polyline([[order.pickupLat, order.pickupLng], [order.deliveryLat, order.deliveryLng]], { color: '#3b82f6', weight: 3, dashArray: '8,6', opacity: 0.6 }).addTo(map);
+        }
       }
     })();
 
@@ -69,7 +72,7 @@ export function OrderTracker({ order }: { order: Order }) {
     }
 
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { destroyed = true; map.remove(); mapRef.current = null; };
   }, [order.id]);
 
   // Live shipper position via socket
