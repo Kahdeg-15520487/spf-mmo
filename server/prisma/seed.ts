@@ -98,10 +98,10 @@ async function main() {
   const shipperData = [
     { username: 'charlie', vehicle: 'Xe Máy' },
     { username: 'shipper_linh', vehicle: 'Xe Máy' },
-    { username: 'shipper_tuan', vehicle: 'Xe Đạp' },
+    { username: 'shipper_tuan', vehicle: 'Xe Máy' },
     { username: 'shipper_mai', vehicle: 'Xe Máy' },
-    { username: 'shipper_hung', vehicle: 'Ô Tô' },
-    { username: 'shipper_anh', vehicle: 'Xe Đạp' },
+    { username: 'shipper_hung', vehicle: 'Xe Máy' },
+    { username: 'shipper_anh', vehicle: 'Xe Máy' },
     { username: 'shipper_dat', vehicle: 'Xe Máy' },
   ];
 
