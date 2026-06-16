@@ -41,19 +41,21 @@ async function fetchOsrmRoute(fromLat: number, fromLng: number, toLat: number, t
 
 // All seeded accounts are bots — every shop, buyer, and shipper runs automatically
 const BOT_BUYERS = new Set([
-  'bob',
-  'buyer_em', 'buyer_hoa', 'buyer_long', 'buyer_thao',
+  'bob', 'buyer_em', 'buyer_hoa', 'buyer_long', 'buyer_thao',
   'buyer_minh', 'buyer_trang', 'buyer_hai', 'buyer_nam', 'buyer_phuc',
+  'buyer_kiet', 'buyer_linh2', 'buyer_toan', 'buyer_mai2', 'buyer_son',
 ]);
 const BOT_SHOPS = new Set([
-  'alice', 'diana',
-  'bep_viet', 'sushi_master', 'banh_mi_king',
-  'seafood_grill', 'chef_minh', 'dessert_house',
+  'alice', 'diana', 'bep_viet', 'sushi_master', 'banh_mi_king',
+  'seafood_grill', 'chef_minh', 'dessert_house', 'pho_hanoi', 'bbq_garden',
 ]);
 const BOT_SHIPPERS = new Set([
-  'charlie',
-  'shipper_linh', 'shipper_tuan', 'shipper_mai',
-  'shipper_hung', 'shipper_anh', 'shipper_dat',
+  'charlie', 'shipper_linh', 'shipper_tuan', 'shipper_mai', 'shipper_hung', 'shipper_anh', 'shipper_dat',
+  'shipper_duc', 'shipper_khoa', 'shipper_bao', 'shipper_hieu', 'shipper_toan', 'shipper_phong', 'shipper_quang',
+  'shipper_son', 'shipper_cuong', 'shipper_huy', 'shipper_vinh', 'shipper_tu', 'shipper_lam',
+  'shipper_nam2', 'shipper_hung2', 'shipper_tien', 'shipper_long2', 'shipper_hai2',
+  'shipper_thanh', 'shipper_nghia', 'shipper_binh', 'shipper_khanh', 'shipper_dung',
+  'shipper_thang', 'shipper_phuong', 'shipper_duy', 'shipper_quyen', 'shipper_trang2',
 ]);
 
 let prisma: PrismaClient;
