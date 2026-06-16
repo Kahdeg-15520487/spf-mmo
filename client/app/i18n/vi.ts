@@ -50,13 +50,13 @@ const vi = {
 
   // Order statuses
   orderStatus: {
-    pending: 'Chờ xử lý',
-    confirmed: 'Đã xác nhận',
-    rejected: 'Đã từ chối',
-    accepted: 'Đã nhận',
+    pending: 'Chờ xác nhận',
+    confirmed: 'Shop đã xác nhận',
+    rejected: 'Shop từ chối',
+    accepted: 'Shipper đang tới lấy',
     picked_up: 'Đã lấy hàng',
-    in_transit: 'Đang giao',
-    delivered: 'Đã giao',
+    in_transit: 'Đang trên đường giao',
+    delivered: 'Giao thành công',
     cancelled: 'Đã hủy',
     expired: 'Hết hạn',
   },
