@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Order, useGame } from '../game-context';
+import { Order, useGame, getOsrmUrl } from '../game-context';
 import { useT } from '../i18n';
 
-const OSRM_BASE = 'http://localhost:5000';
+const OSRM_BASE = getOsrmUrl();
 
 const createIcon = (emoji: string, size = 32) =>
   L.divIcon({
@@ -49,7 +49,7 @@ export function OrderTracker({ order }: { order: Order }) {
     const targetLng = o.status === 'picked_up' || o.status === 'in_transit' ? o.deliveryLng : o.pickupLng;
     if (!targetLat || !targetLng) return;
     try {
-      const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${targetLng},${targetLat}?geometries=geojson&overview=full`;
+      const url = `${OSRM_BASE}/route/v1/driving/${fromLng},${fromLat};${targetLng},${targetLat}?geometries=geojson&overview=full`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.routes?.[0] && mapRef.current) {
@@ -111,6 +111,20 @@ export function OrderTracker({ order }: { order: Order }) {
     lastRouteUpdateRef.current = 0;
     lastRouteFromRef.current = null;
   }, [order.status]);
+
+  // Move scooter marker when shipper gets assigned (order.id unchanged but shipper appears)
+  useEffect(() => {
+    if (!order.shipper?.lat || !order.shipper?.lng || !scooterRef.current) return;
+    scooterRef.current.setLatLng([order.shipper.lat, order.shipper.lng]);
+    // Center map on the newly-assigned shipper
+    if (mapRef.current) {
+      mapRef.current.setView([order.shipper.lat, order.shipper.lng], 15);
+    }
+    // Also trigger initial route draw from the shipper's position
+    lastRouteUpdateRef.current = 0;
+    lastRouteFromRef.current = null;
+    updateRoute(order.shipper.lat, order.shipper.lng);
+  }, [order.shipper?.lat, order.shipper?.lng]);
 
   // Live shipper position via socket
   useEffect(() => {

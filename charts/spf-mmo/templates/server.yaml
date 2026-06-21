@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spf-server
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: spf-server
+  template:
+    metadata:
+      labels:
+        app: spf-server
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: server
+          image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.server.port }}
+              name: http
+          env:
+            - name: OSRM_URL
+              value: {{ .Values.server.osrmUrl | quote }}
+            - name: PORT
+              value: {{ .Values.server.port | quote }}
+          volumeMounts:
+            - name: sqlite
+              mountPath: /app/prisma
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+      volumes:
+        - name: sqlite
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-sqlite
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spf-server
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: server
+spec:
+  selector:
+    app: spf-server
+  ports:
+    - port: {{ .Values.server.port }}
+      targetPort: http
+      name: http

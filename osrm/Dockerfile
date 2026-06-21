@@ -9,4 +9,4 @@ RUN osrm-extract -p /opt/car.lua /data/vietnam-latest.osm.pbf && \
     chmod 644 /data/vietnam-latest.osrm*
 
 EXPOSE 5000
-ENTRYPOINT ["osrm-routed", "--algorithm", "mld", "/data/vietnam-latest.osrm"]
+ENTRYPOINT ["osrm-routed", "--algorithm", "mld", "--threads", "8", "/data/vietnam-latest.osrm"]

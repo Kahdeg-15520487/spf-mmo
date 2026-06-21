@@ -37,7 +37,18 @@ app.use('/api/reviews', reviewRouter);
 app.use('/api/zones', zonesRouter);
 app.use('/api/debug', debugRouter);
 
-// Health check
+// OSRM proxy — avoids CORS issues when frontend is on a different port/host
+const OSRM_URL = process.env.OSRM_URL || 'http://localhost:13114';
+app.use('/api/osrm', async (req, res) => {
+  try {
+    const target = `${OSRM_URL}${req.url}`;
+    const upstream = await fetch(target);
+    const data = await upstream.json();
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ error: 'OSRM unreachable' });
+  }
+});
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

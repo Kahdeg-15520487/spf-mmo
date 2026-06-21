@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { Server as SocketIOServer } from 'socket.io';
 
+const OSRM_BASE = process.env.OSRM_URL || 'http://localhost:13114';
+
 // In-memory route cache: orderId → array of [lat, lng] waypoints + current index
 const botRoutes = new Map<string, { waypoints: [number, number][]; idx: number }>();
 
@@ -8,7 +10,7 @@ async function fetchOsrmEta(fromLat: number, fromLng: number, toLat: number, toL
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+    const url = `${OSRM_BASE}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     const data = await res.json() as any;
@@ -23,7 +25,7 @@ async function fetchOsrmRoute(fromLat: number, fromLng: number, toLat: number, t
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const url = `http://localhost:5000/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full`;
+    const url = `${OSRM_BASE}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full`;
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timeout);
     const data = await res.json() as any;
@@ -266,7 +268,11 @@ async function botShipperProcess() {
           }, etaMs);
         } else {
           // At least one human — full movement simulation
-          await prisma.shipper.update({ where: { id: shipper.id }, data: { lat: order.pickupLat + (Math.random()-0.5)*0.01, lng: order.pickupLng + (Math.random()-0.5)*0.01 } });
+          const newLat = order.pickupLat + (Math.random()-0.5)*0.01;
+          const newLng = order.pickupLng + (Math.random()-0.5)*0.01;
+          await prisma.shipper.update({ where: { id: shipper.id }, data: { lat: newLat, lng: newLng } });
+          // Emit initial position so buyer's map updates immediately
+          io.to(`order:${order.id}`).emit('shipper:location-update', { shipperId: shipper.id, lat: newLat, lng: newLng, orderId: order.id });
           console.log(`🛵 ${shipper.user.username} accepted (human order)`);
         }
       }

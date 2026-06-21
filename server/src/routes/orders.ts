@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma, io } from '../index';
 import { XP_REWARDS, XP_PER_LEVEL } from '../progression';
 
-const OSRM = 'http://localhost:5000';
+const OSRM = process.env.OSRM_URL || 'http://localhost:13114';
 
 async function getOsrmEta(fromLng: number, fromLat: number, toLng: number, toLat: number): Promise<number | null> {
   try {

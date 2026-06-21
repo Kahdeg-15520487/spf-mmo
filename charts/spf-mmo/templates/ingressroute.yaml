@@ -1,0 +1,29 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Socket.IO → server (WebSocket auto-upgraded by Traefik)
+    - kind: Rule
+      match: Host(`{{ .Values.domain }}`) && PathPrefix(`/socket.io/`)
+      services:
+        - name: spf-server
+          port: {{ .Values.server.port }}
+    # API routes → server
+    - kind: Rule
+      match: Host(`{{ .Values.domain }}`) && PathPrefix(`/api/`)
+      services:
+        - name: spf-server
+          port: {{ .Values.server.port }}
+    # Everything else → Next.js client
+    - kind: Rule
+      match: Host(`{{ .Values.domain }}`)
+      services:
+        - name: spf-client
+          port: {{ .Values.client.port }}

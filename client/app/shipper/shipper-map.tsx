@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Order, API_URL, useGame } from '../game-context';
+import { Order, API_URL, useGame, getOsrmUrl } from '../game-context';
 import { useT } from '../i18n';
 import { COMMERCIAL_ZONES, RESIDENTIAL_ZONES } from '../zones';
 import VirtualJoystick from '../components/virtual-joystick';
 
-const OSRM_BASE = 'http://localhost:5000';
+const OSRM_BASE = getOsrmUrl();
 
 const createIcon = (emoji: string, size = 32) =>
   L.divIcon({

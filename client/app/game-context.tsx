@@ -3,7 +3,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:13110';
+// API base URL — 3-tier resolution:
+//   1. NEXT_PUBLIC_API_URL explicitly set  → use as-is (Docker build sets "" for nginx)
+//   2. Browser runtime (dev mode)         → auto-detect http://{hostname}:13110
+//   3. SSR fallback                        → http://localhost:13110
+const API_URL = (() => {
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL !== undefined) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    return `http://${window.location.hostname}:13110`;
+  }
+  return 'http://localhost:13110';
+})();
 
 export interface User {
   id: string;
@@ -225,3 +237,8 @@ export function useGame() {
 }
 
 export { API_URL };
+
+// OSRM routing URL — proxied through backend (nginx routes /api/osrm/* → backend → OSRM)
+export function getOsrmUrl(): string {
+  return `${API_URL}/api/osrm`;
+}

@@ -1,0 +1,43 @@
+services:
+  # ── OSRM Routing Engine ────────────────────────────────────────────
+  osrm:
+    image: ghcr.io/kahdeg-15520487/spf-osrm-vietnam:latest
+    restart: unless-stopped
+    entrypoint: ["osrm-routed", "--algorithm", "mld", "--threads", "8", "/data/vietnam-latest.osrm"]
+    mem_limit: 4g
+
+  # ── Backend API + WebSocket ────────────────────────────────────────
+  server:
+    build: ./server
+    restart: unless-stopped
+    depends_on:
+      - osrm
+    environment:
+      - OSRM_URL=http://osrm:5000
+      - PORT=13110
+    volumes:
+      - spf-db:/app/prisma
+
+  # ── Frontend (Next.js) ─────────────────────────────────────────────
+  client:
+    build: ./client
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      - PORT=13112
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "13180:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - client
+      - server
+
+volumes:
+  spf-db:

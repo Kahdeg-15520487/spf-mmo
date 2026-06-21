@@ -1,0 +1,57 @@
+# -- Number of replicas (server MUST be 1 — SQLite)
+replicaCount: 1
+
+# -- Domain for Traefik IngressRoute
+domain: spf.minhnguyenle.net
+
+# -- Docker registry pull secret name
+imagePullSecrets: ghcr-auth
+
+osrm:
+  image:
+    repository: ghcr.io/kahdeg-15520487/spf-osrm-vietnam
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2"
+  service:
+    port: 5000
+
+server:
+  image:
+    repository: ghcr.io/kahdeg-15520487/spf-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 13110
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  # -- OSRM service URL
+  osrmUrl: http://spf-osrm:5000
+  # -- SQLite persistent storage
+  persistence:
+    size: 1Gi
+    storageClass: ""  # default StorageClass
+
+client:
+  image:
+    repository: ghcr.io/kahdeg-15520487/spf-client
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 13112
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"

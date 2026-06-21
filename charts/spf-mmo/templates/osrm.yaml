@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spf-osrm
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: osrm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spf-osrm
+  template:
+    metadata:
+      labels:
+        app: spf-osrm
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecrets }}
+      containers:
+        - name: osrm
+          image: "{{ .Values.osrm.image.repository }}:{{ .Values.osrm.image.tag }}"
+          imagePullPolicy: {{ .Values.osrm.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.osrm.service.port }}
+              name: http
+          resources:
+            {{- toYaml .Values.osrm.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spf-osrm
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: osrm
+spec:
+  selector:
+    app: spf-osrm
+  ports:
+    - port: {{ .Values.osrm.service.port }}
+      targetPort: http
+      name: http
