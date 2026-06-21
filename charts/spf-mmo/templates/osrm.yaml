@@ -18,6 +18,14 @@ spec:
     spec:
       imagePullSecrets:
         - name: {{ .Values.imagePullSecrets }}
+      {{- with .Values.osrm.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.osrm.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: osrm
           image: "{{ .Values.osrm.image.repository }}:{{ .Values.osrm.image.tag }}"

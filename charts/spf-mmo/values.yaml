@@ -11,7 +11,13 @@ osrm:
   image:
     repository: ghcr.io/kahdeg-15520487/spf-osrm-vietnam
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: "true"
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
   resources:
     requests:
       memory: "1Gi"
@@ -26,7 +32,7 @@ server:
   image:
     repository: ghcr.io/kahdeg-15520487/spf-server
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   port: 13110
   resources:
     requests:
@@ -46,7 +52,7 @@ client:
   image:
     repository: ghcr.io/kahdeg-15520487/spf-client
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   port: 13112
   resources:
     requests:
