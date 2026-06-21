@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# Restore schema + seed if missing (PVC mount hides image files)
+if [ ! -f /app/prisma/schema.prisma ]; then
+  echo "📋 First run — copying schema and seed to volume..."
+  cp /app/prisma-template/schema.prisma /app/prisma/
+  cp /app/prisma-template/seed.ts /app/prisma/
+fi
+
 # Generate Prisma client (needed even if built, for the runtime engine)
 npx prisma generate
 

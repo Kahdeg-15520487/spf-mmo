@@ -26,7 +26,7 @@ RUN apk add --no-cache openssl sqlite
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/src ./src
-COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/prisma ./prisma-template
 COPY --from=build /app/package.json ./
 COPY docker-entrypoint.sh ./
 
