@@ -16,8 +16,6 @@ spec:
       labels:
         app: spf-client
     spec:
-      imagePullSecrets:
-        - name: {{ .Values.imagePullSecrets }}
       containers:
         - name: client
           image: "{{ .Values.client.image.repository }}:{{ .Values.client.image.tag }}"

@@ -16,8 +16,6 @@ spec:
       labels:
         app: spf-server
     spec:
-      imagePullSecrets:
-        - name: {{ .Values.imagePullSecrets }}
       containers:
         - name: server
           image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
