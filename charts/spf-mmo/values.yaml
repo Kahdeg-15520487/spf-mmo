@@ -4,29 +4,9 @@ replicaCount: 1
 # -- Domain for Traefik IngressRoute
 domain: spf.minhnguyenle.net
 
-# -- Docker registry pull secret name
-imagePullSecrets: ghcr-auth
-
 osrm:
-  image:
-    repository: ghcr.io/kahdeg-15520487/spf-osrm-vietnam
-    tag: latest
-    pullPolicy: Always
-  nodeSelector:
-    node-role.kubernetes.io/control-plane: "true"
-  tolerations:
-    - key: node-role.kubernetes.io/control-plane
-      operator: Exists
-      effect: NoSchedule
-  resources:
-    requests:
-      memory: "1Gi"
-      cpu: "500m"
-    limits:
-      memory: "2Gi"
-      cpu: "2"
-  service:
-    port: 5000
+  # OSRM deployed separately in osrm namespace — disable Helm-managed OSRM
+  enabled: false
 
 server:
   image:
@@ -41,12 +21,12 @@ server:
     limits:
       memory: "512Mi"
       cpu: "500m"
-  # -- OSRM service URL
-  osrmUrl: http://spf-osrm:5000
+  # -- OSRM service URL (external, managed in osrm namespace)
+  osrmUrl: http://osrm-vietnam.osrm.svc.homelab.cluster:5000
   # -- SQLite persistent storage
   persistence:
     size: 1Gi
-    storageClass: ""  # default StorageClass
+    storageClass: ""
 
 client:
   image:

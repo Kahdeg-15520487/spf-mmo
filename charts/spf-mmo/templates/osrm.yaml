@@ -1,3 +1,4 @@
+{{- if .Values.osrm.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -51,3 +52,4 @@ spec:
     - port: {{ .Values.osrm.service.port }}
       targetPort: http
       name: http
+{{- end }}
