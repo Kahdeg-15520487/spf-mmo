@@ -38,7 +38,7 @@ spec:
       volumes:
         - name: sqlite
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-sqlite
+            claimName: {{ .Release.Name }}-prisma
 ---
 apiVersion: v1
 kind: Service
